@@ -1,0 +1,19 @@
+{
+  "name": "dsh-workspace-explorer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DeepSeek Harness web UI workspace file explorer: a right-side panel that shows the workspace directory tree and lets you drag files into the composer.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/<your-org>/dsh-workspace-explorer.git"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "cordis",
+    "plugin",
+    "workspace",
+    "explorer",
+    "file-tree"
+  ]
+}
