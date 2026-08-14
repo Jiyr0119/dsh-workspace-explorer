@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>dsh-workspace-explorer · Interactive Demo</title>
+<meta name="description" content="Interactive mock preview of the dsh-workspace-explorer plugin for DeepSeek Harness: workspace file tree panel with click / drag-to-composer file references." />
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    color: #e8e8e8;
+    background: radial-gradient(1200px 600px at 20% -10%, #1c2430 0%, #0d1117 55%, #080b0f 100%);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 28px 16px 40px;
+  }
+
+  /* ---- demo 说明条 ---- */
+  .demo-note {
+    max-width: 960px; width: 100%;
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 12px;
+    padding: 10px 16px;
+    margin-bottom: 16px;
+    font-size: 12.5px;
+    color: #aeb6c2;
+    display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center;
+  }
+  .demo-note b { color: #e8e8e8; }
+  .demo-note a { color: #6ea8fe; text-decoration: none; }
+  .demo-note a:hover { text-decoration: underline; }
+  .demo-note .pill {
+    margin-left: auto; flex: none;
+    background: rgba(65,118,230,.16); color: #9ec5ff;
+    border: 1px solid rgba(65,118,230,.35);
+    border-radius: 999px; padding: 2px 10px; font-size: 11.5px;
+  }
+
+  /* ---- 舞台:模拟 DSH 窗口 ---- */
+  .demo-stage {
+    position: relative;
+    width: min(960px, 100%);
+    height: min(600px, calc(100dvh - 150px));
+    min-height: 420px;
+    background: #15171a;
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 24px 70px rgba(0,0,0,.55);
+  }
+
+  /* 左侧:假聊天区 */
+  .demo-chat { position: absolute; inset: 0; display: flex; flex-direction: column; }
+  .demo-chat-head {
+    flex: none; padding: 12px 16px; font-size: 13px; font-weight: 600; color: #cfd6e0;
+    border-bottom: 1px solid rgba(255,255,255,.07);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .demo-chat-head .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
+  .demo-log { flex: 1; overflow: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .demo-log-empty { color: #5d646e; font-size: 12.5px; }
+  .demo-msg {
+    align-self: flex-end; max-width: 82%;
+    background: #1e242c; border: 1px solid rgba(255,255,255,.08);
+    border-radius: 12px 12px 4px 12px; padding: 8px 12px;
+    font-size: 12.5px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color: #c8d0db; word-break: break-all;
+  }
+  .demo-composer { flex: none; padding: 10px 14px 14px; border-top: 1px solid rgba(255,255,255,.07); background: rgba(255,255,255,.02); }
+  .demo-composer textarea {
+    width: 100%; height: 64px; resize: none;
+    background: #0f1215; color: #e8e8e8;
+    border: 1px solid rgba(255,255,255,.12); border-radius: 12px;
+    padding: 10px 12px; font: inherit; font-size: 13px; outline: none;
+  }
+  .demo-composer textarea:focus { border-color: #4176e6; }
+  .demo-composer-bar { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .demo-send {
+    margin-left: auto;
+    background: #4176e6; color: #fff; border: 0; border-radius: 8px;
+    padding: 6px 16px; font: inherit; font-size: 12.5px; cursor: pointer;
+  }
+  .demo-send:hover { background: #4c83f5; }
+
+  /* ---- 插件面板样式(与 src/client.js 完全一致) ---- */
+  .demo-stage .dshwe-layer { position: absolute; inset: 0; z-index: 100; pointer-events: none; }
+  .dshwe-panel {
+    position: absolute; top: 14px; right: 14px; bottom: 14px; width: 372px;
+    pointer-events: auto;
+    display: flex; flex-direction: column;
+    background: #26282c;
+    border: 1px solid rgba(128,128,128,.28);
+    border-radius: 24px;
+    box-shadow: 0 0 1px 0 rgba(0,0,0,.5), 0 12px 32px 0 rgba(0,0,0,.5);
+    color: #e8e8e8;
+    overflow: hidden;
+  }
+  .dshwe-head { display: flex; align-items: center; gap: 8px; flex: none; padding: 14px 16px 12px 18px; border-bottom: 1px solid rgba(255,255,255,.12); }
+  .dshwe-head-ico { color: #4176e6; display: inline-flex; flex: none; }
+  .dshwe-title { font-size: 15px; font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dshwe-icobtn { border: 0; background: transparent; color: #9a9a9a; width: 28px; height: 28px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+  .dshwe-icobtn:hover { background: rgba(255,255,255,.08); color: #e8e8e8; }
+  .dshwe-selrow { display: flex; gap: 8px; padding: 12px 16px 6px; align-items: center; }
+  .dshwe-sel { flex: 1; min-width: 0; height: 30px; background: transparent; color: #e8e8e8; border: 1px solid rgba(255,255,255,.12); border-radius: 8px; padding: 0 8px; font: inherit; font-size: 12.5px; outline: none; }
+  .dshwe-sel:focus { border-color: #4176e6; }
+  .dshwe-sel option { background: #1c1e22; }
+  .dshwe-hintline { display: flex; align-items: center; gap: 6px; padding: 4px 18px 8px; color: #8a8a8a; font-size: 11px; }
+  .dshwe-tree { flex: 1; overflow: auto; padding: 2px 6px 14px; }
+  .dshwe-row { display: flex; align-items: center; gap: 7px; padding: 4.5px 10px; cursor: pointer; user-select: none; white-space: nowrap; border: 0; width: 100%; text-align: left; background: transparent; color: inherit; font: inherit; border-radius: 10px; }
+  .dshwe-row:hover { background: rgba(255,255,255,.08); }
+  .dshwe-row-file { cursor: grab; }
+  .dshwe-row-file:active { cursor: grabbing; }
+  .dshwe-chev-slot { width: 14px; flex: none; display: inline-flex; align-items: center; justify-content: center; }
+  .dshwe-chev { color: #777; transition: transform .16s ease; display: inline-flex; }
+  .dshwe-chev-on { transform: rotate(90deg); }
+  .dshwe-ico { flex: none; display: inline-flex; align-items: center; justify-content: center; }
+  .dshwe-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; }
+  .dshwe-row-dir .dshwe-name { font-weight: 600; }
+  .dshwe-size { flex: none; color: #8a8a8a; font-size: 11px; font-variant-numeric: tabular-nums; padding-left: 6px; }
+  .dshwe-insert { flex: none; display: inline-flex; align-items: center; color: #4176e6; opacity: 0; transition: opacity .12s ease; }
+  .dshwe-row:hover .dshwe-insert { opacity: 1; }
+  .dshwe-hint {
+    position: absolute; inset: 10px; z-index: 200;
+    border: 1.5px dashed #4176e6; border-radius: 20px;
+    display: flex; align-items: center; justify-content: center; pointer-events: none;
+    background: rgba(13,17,23,.35);
+  }
+  .dshwe-hint-chip { display: flex; align-items: center; gap: 7px; background: #26282c; color: #e8e8e8; padding: 9px 15px; border-radius: 999px; font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,.4); }
+  .dshwe-hint-chip svg { color: #4176e6; }
+  .dshwe-act { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; color: #9a9a9a; padding: 5px 8px; border-radius: 8px; cursor: pointer; font: inherit; }
+  .dshwe-act:hover { background: rgba(255,255,255,.08); color: #e8e8e8; }
+  .dshwe-act-on { color: #4176e6; }
+  .dshwe-note { padding: 6px 16px; color: #8a8a8a; font-size: 12px; display: flex; align-items: center; gap: 8px; }
+</style>
+</head>
+<body>
+
+  <div class="demo-note">
+    <b>dsh-workspace-explorer · Interactive Demo</b>
+    <span>模拟预览 — 与真实插件 UI 一致(文件树面板 + 点击/拖拽插入引用)</span>
+    <span>Mock preview of the DeepSeek Harness plugin UI — click a file, or drag it into the composer below.</span>
+    <span class="pill">Mock · 非真实运行环境</span>
+    <a href="https://github.com/Jiyr0119/dsh-workspace-explorer" target="_blank" rel="noopener">GitHub ↗</a>
+  </div>
+
+  <div class="demo-stage" id="stage">
+    <div class="demo-chat">
+      <div class="demo-chat-head"><span class="dot"></span> DeepSeek Harness · Preview</div>
+      <div class="demo-log" id="log"><div class="demo-log-empty">发送文件引用后,这里会出现 `[file: …]` 消息(模拟)。</div></div>
+      <div class="demo-composer" id="composerCard">
+        <textarea id="composer" placeholder="在此输入… 或点击/拖拽右侧文件"></textarea>
+        <div class="demo-composer-bar">
+          <button type="button" class="dshwe-act" id="toggleBtn" title="工作区文件">📁 文件</button>
+          <button type="button" class="demo-send" id="sendBtn">发送 Send</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="dshwe-layer" id="layer">
+      <div class="dshwe-hint" id="dropHint" hidden>
+        <div class="dshwe-hint-chip">
+          <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M8 3.5v6M5.7 7.2L8 9.5l2.3-2.3M3.5 12.5h9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          松开以插入文件引用到输入框
+        </div>
+      </div>
+      <div class="dshwe-panel" id="panel" hidden>
+        <div class="dshwe-head">
+          <span class="dshwe-head-ico" id="headIco"></span>
+          <div class="dshwe-title" id="panelTitle">工作区文件</div>
+          <button type="button" class="dshwe-icobtn" id="refreshBtn" title="刷新">
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.61-3.89M13.5 1.5v3h-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </button>
+          <button type="button" class="dshwe-icobtn" id="closeBtn" title="关闭">
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <div class="dshwe-selrow">
+          <select class="dshwe-sel" id="wsSel"></select>
+          <button type="button" class="dshwe-icobtn" id="addBtn" title="添加工作区(演示)">+</button>
+        </div>
+        <div class="dshwe-hintline">↩ 点击文件或拖拽到输入框,发送给模型</div>
+        <div class="dshwe-tree" id="tree"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function () {
+  'use strict'
+
+  // ---------- 图标(SVG 路径与插件一致) ----------
+  var FOLDER_D = 'M1.5 2.5A1.5 1.5 0 0 1 3 1h3.2l1.6 2H13a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 13 13H3a1.5 1.5 0 0 1-1.5-1.5v-9z'
+  var DOC_BODY = 'M4.3 1.7h5.3l2.7 2.7v8.9a1 1 0 0 1-1 1H4.3a1 1 0 0 1-1-1V2.7a1 1 0 0 1 1-1z'
+  var DOC_FOLD = 'M9.6 1.7L12.3 4.4H9.6z'
+  var GLYPHS = {
+    code: 'M6.4 6.1L4.9 8l1.5 1.9M9.6 6.1l1.5 1.9L9.6 9.9',
+    image: 'M3.6 12.4l2.7-2.7 1.8 1.8 1.5-1.5 2.8 2.4M5.4 6.4a1.1 1.1 0 1 0 0-2.2 1.1 1.1 0 0 0 0 2.2z',
+    markdown: 'M5.1 11.2l1.9-2.9 1.9 2.9M5.1 8.4h3.8',
+    config: 'M3.2 5.6h3.6M9 5.6h3.8M3.2 10.4h3.6M9 10.4h3.8M7.4 3.8v3.6M7.4 8.6v3.6',
+    css: 'M6.2 4.4v7.2M9.8 4.4v7.2M4.9 6.9h6.2M4.9 9.1h6.2',
+    shell: 'M3.6 5.4l2.4 2.6L3.6 10.6M8.1 10.6h4.3',
+    plain: ''
+  }
+  var FILE_META = {
+    ts: ['#3178c6', 'code'], tsx: ['#3178c6', 'code'], py: ['#3572a5', 'code'], js: ['#d4a72c', 'code'],
+    sh: ['#4c9a4a', 'shell'], json: ['#c9a227', 'config'], yml: ['#5b7c99', 'config'], yaml: ['#5b7c99', 'config'],
+    md: ['#4f8ac9', 'markdown'], txt: ['#8a919c', 'plain'], css: ['#2965f1', 'css'], scss: ['#c6538c', 'css'],
+    svg: ['#5a67d8', 'image'], png: ['#5a67d8', 'image'], ico: ['#5a67d8', 'image'], csv: ['#2fa97c', 'plain']
+  }
+  var DEFAULT_META = ['#8a919c', 'plain']
+
+  function extOf(name) { var i = name.lastIndexOf('.'); return i <= 0 ? '' : name.slice(i + 1).toLowerCase() }
+
+  function svg(paths, size) {
+    var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+    s.setAttribute('viewBox', '0 0 16 16'); s.setAttribute('width', size); s.setAttribute('height', size)
+    s.setAttribute('aria-hidden', 'true'); s.style.display = 'inline-flex'
+    paths.forEach(function (p) {
+      var el = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+      Object.keys(p).forEach(function (k) { el.setAttribute(k, p[k]) })
+      s.appendChild(el)
+    })
+    return s
+  }
+  function folderSvg(open) { return svg([{ d: FOLDER_D, fill: open ? '#e8c47c' : '#dcb67a' }], 16) }
+  function fileSvg(color, glyph) {
+    var paths = [{ d: DOC_BODY, fill: color }, { d: DOC_FOLD, fill: 'rgba(255,255,255,.92)' }]
+    if (glyph) paths.push({ d: glyph, fill: 'none', stroke: '#fff', 'stroke-width': 1.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
+    return svg(paths, 16)
+  }
+  function chevronSvg(open) {
+    return svg([{ d: 'M6 4l4 4-4 4', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }], 14)
+  }
+  document.getElementById('headIco').appendChild(folderSvg(false))
+
+  // ---------- 模拟工作区数据 ----------
+  var WORKSPACES = {
+    'my-app': {
+      label: 'my-app',
+      dirs: {
+        'src': {
+          dirs: { 'components': { dirs: {}, files: [['Button.tsx', 1284], ['Card.tsx', 2048]] } },
+          files: [['app.tsx', 5621], ['api.ts', 3390], ['styles.css', 1874]]
+        },
+        'public': { dirs: {}, files: [['logo.svg', 8934], ['favicon.ico', 15486]] }
+      },
+      files: [['package.json', 2411], ['README.md', 1189], ['tsconfig.json', 742], ['vite.config.ts', 918], ['.env', 120]]
+    },
+    'data-pipeline': {
+      label: 'data-pipeline',
+      dirs: {
+        'src': { dirs: {}, files: [['main.py', 4922], ['models.py', 3810], ['utils.py', 2214]] },
+        'scripts': { dirs: {}, files: [['run.sh', 342]] },
+        'data': { dirs: {}, files: [['sample.csv', 12840], ['schema.json', 861]] }
+      },
+      files: [['requirements.txt', 210], ['pyproject.toml', 1502], ['README.md', 963], ['.env', 88]]
+    }
+  }
+
+  function fmtSize(n) {
+    if (n < 1024) return n + ' B'
+    if (n < 1048576) return (n / 1024).toFixed(1) + ' KB'
+    return (n / 1048576).toFixed(1) + ' MB'
+  }
+
+  // ---------- 状态 ----------
+  var state = {
+    open: false,
+    ws: 'my-app',
+    expanded: {} // rel -> true
+  }
+
+  var $ = function (id) { return document.getElementById(id) }
+  var panel = $('panel'), layer = $('layer'), tree = $('tree'), wsSel = $('wsSel')
+  var logEl = $('log'), composer = $('composer'), dropHint = $('dropHint'), composerCard = $('composerCard')
+
+  // 工作区下拉
+  Object.keys(WORKSPACES).forEach(function (k) {
+    var o = document.createElement('option')
+    o.value = k; o.textContent = WORKSPACES[k].label
+    wsSel.appendChild(o)
+  })
+  wsSel.value = state.ws
+
+  // ---------- 渲染 ----------
+  function renderPanel() {
+    panel.hidden = !state.open
+    $('toggleBtn').classList.toggle('dshwe-act-on', state.open)
+  }
+  function renderTree() {
+    var ws = WORKSPACES[state.ws]
+    $('panelTitle').textContent = '工作区文件 · ' + ws.label
+    tree.textContent = ''
+    wsSel.value = state.ws
+    renderNode(tree, '', ws, 0)
+  }
+  function renderNode(container, baseRel, node, depth) {
+    // 目录在前,按名排序
+    var dirNames = Object.keys(node.dirs).sort()
+    dirNames.forEach(function (name) {
+      var rel = baseRel === '' ? name : baseRel + '/' + name
+      var open = !!state.expanded[rel]
+      var row = document.createElement('button')
+      row.type = 'button'
+      row.className = 'dshwe-row dshwe-row-dir'
+      row.style.paddingLeft = (10 + depth * 16) + 'px'
+      row.title = rel
+
+      var slot = document.createElement('span'); slot.className = 'dshwe-chev-slot'
+      var ch = chevronSvg(open); ch.classList.toggle('dshwe-chev-on', open); slot.appendChild(ch)
+      row.appendChild(slot)
+      row.appendChild(folderSvg(open))
+      var nm = document.createElement('span'); nm.className = 'dshwe-name'; nm.textContent = name; row.appendChild(nm)
+
+      row.addEventListener('click', function () {
+        if (state.expanded[rel]) delete state.expanded[rel]; else state.expanded[rel] = true
+        renderTree()
+      })
+      container.appendChild(row)
+      if (open) renderNode(container, rel, node.dirs[name], depth + 1)
+    })
+
+    var fileNames = (node.files || []).slice().sort(function (a, b) { return a[0].localeCompare(b[0]) })
+    fileNames.forEach(function (f) {
+      var name = f[0], size = f[1]
+      var rel = baseRel === '' ? name : baseRel + '/' + name
+      var meta = FILE_META[extOf(name)] || DEFAULT_META
+      var row = document.createElement('button')
+      row.type = 'button'
+      row.className = 'dshwe-row dshwe-row-file'
+      row.style.paddingLeft = (10 + depth * 16) + 'px'
+      row.title = rel + ' · 点击或拖拽到输入框'
+      row.draggable = true
+
+      var slot = document.createElement('span'); slot.className = 'dshwe-chev-slot'; row.appendChild(slot)
+      row.appendChild(fileSvg(meta[0], meta[1]))
+      var nm = document.createElement('span'); nm.className = 'dshwe-name'; nm.textContent = name; row.appendChild(nm)
+      var sz = document.createElement('span'); sz.className = 'dshwe-size'; sz.textContent = fmtSize(size); row.appendChild(sz)
+      var ins = document.createElement('span'); ins.className = 'dshwe-insert'; ins.title = '插入引用'
+      ins.appendChild(svg([{ d: 'M8 2.5v7.5M5.7 7.5L8 9.8l2.3-2.3M3.5 12.5h9', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.4, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }], 13))
+      row.appendChild(ins)
+
+      row.addEventListener('click', function () { insertMarker(rel) })
+      row.addEventListener('dragstart', function (e) {
+        e.dataTransfer.setData('text/plain', '[file: ' + rel + ']')
+        e.dataTransfer.setData('application/x-dsh-ws-file', JSON.stringify({ rel: rel, name: name }))
+        e.dataTransfer.effectAllowed = 'copy'
+        dropHint.hidden = false
+      })
+      container.appendChild(row)
+    })
+  }
+
+  // ---------- 插入与发送 ----------
+  function insertMarker(rel) {
+    var text = '[file: ' + rel + ']'
+    var draft = composer.value
+    var sep = draft === '' || draft.endsWith('\n') ? '' : '\n'
+    composer.value = draft + sep + text
+    composer.focus()
+    composer.setSelectionRange(composer.value.length, composer.value.length)
+  }
+  $('sendBtn').addEventListener('click', function () {
+    var v = composer.value.trim()
+    if (!v) return
+    var m = document.createElement('div'); m.className = 'demo-msg'; m.textContent = v
+    var empty = logEl.querySelector('.demo-log-empty'); if (empty) empty.remove()
+    logEl.appendChild(m); logEl.scrollTop = logEl.scrollHeight
+    composer.value = ''
+  })
+
+  // ---------- 面板开关 ----------
+  $('toggleBtn').addEventListener('click', function () { state.open = !state.open; renderPanel() })
+  $('closeBtn').addEventListener('click', function () { state.open = false; renderPanel() })
+  $('refreshBtn').addEventListener('click', renderTree)
+  $('addBtn').addEventListener('click', function () {
+    var keys = Object.keys(WORKSPACES)
+    var next = keys[(keys.indexOf(state.ws) + 1) % keys.length]
+    state.ws = next; state.expanded = {}; renderTree()
+  })
+  wsSel.addEventListener('change', function () { state.ws = wsSel.value; state.expanded = {}; renderTree() })
+
+  // ---------- 拖放(与真实插件一致) ----------
+  document.addEventListener('dragover', function (e) {
+    if (!(e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], 'application/x-dsh-ws-file') >= 0)) return
+    e.preventDefault()
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'
+  }, true)
+  document.addEventListener('drop', function (e) {
+    if (!(e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], 'application/x-dsh-ws-file') >= 0)) return
+    var text = e.dataTransfer.getData('text/plain') || ''
+    var ta = composerCard.contains(e.target) ? composer : null
+    if (ta != null) { dropHint.hidden = true; return } // 输入框内:原生光标插入
+    e.preventDefault()
+    e.stopPropagation()
+    dropHint.hidden = true
+    if (text) { composer.value = composer.value ? composer.value + '\n' + text : text; composer.focus() }
+  }, true)
+  document.addEventListener('dragend', function () { dropHint.hidden = true })
+
+  // ---------- 初始化 ----------
+  renderPanel()
+  renderTree()
+})()
+</script>
+</body>
+</html>
