@@ -1,5 +1,20 @@
 # Changelog
 
+## [v0.1.1] - Unreleased
+
+### 新增 Added
+
+- GitHub Pages 交互式预览 `demo/index.html`(面板打开时聊天区自动让位)/ Interactive GitHub Pages preview (`demo/index.html`; the chat area yields to the panel when opened).
+- 演示 GIF `demo/preview.gif`,内嵌于两份 README / Demo GIF embedded in both READMEs.
+- npm 可发布源码包 `@jiyr0119/dsh-workspace-explorer` / npm-publishable source package.
+- 原生 DSH 包路线文档 `docs/native-package.md` / Native-package roadmap doc.
+- 市场截图素材 `assets/screenshots/` / Storefront screenshot assets.
+
+### 变更 Changed
+
+- README 改为英文默认 + 中英切换(`README.md` / `README.zh.md`)/ READMEs restructured: English default with a language switch.
+- 仓库迁移至 `~/workspaceforme` 根目录 / Repo moved to `~/workspaceforme`.
+
 ## [v0.1.0] - 2025-08-14
 
 首个正式版本 / First official release。
