@@ -41,3 +41,16 @@ cordis.yml                          # 加两行挂载(host 组合 + web 组合)
 - **安装体验**:用户在 DSH 里按 README 把 `src/host.js` / `src/client.js` 粘贴到动态插件面板;代码随版本更新
 
 当 DSH 官方插件生态(或你的 fork)支持自定义 Remote 后,再按上文 PR 清单升级为原生包。
+
+## 中间路线:dsh-genie 固化(2026-08)/ Intermediate route: dsh-genie
+
+[`swaylq/dsh-genie`](https://github.com/swaylq/dsh-genie)(awesome 列表收录)把"动态插件跨重启存活"做成了工具,维护者 fkysly 在 issue #1142 里点名推荐:
+
+```sh
+# 一次性安装(之后重启 dsh)
+dsh plugin --profile web add github:swaylq/dsh-genie
+```
+
+会话内流程:Agent 用 `cordis_define` 粘贴本插件(host.js + client.js)→ 你试用 → 说"keep it" → Agent 调 `genie_keep` → 插件写入 `$DSH_HOME/genie/`(package.json + cordis.patch.yml + index.js,与我们的仓库结构一致),重启后 **Host 半区仍存活**。
+
+**能力边界(来自 genie 源码)**:`client` 半区(浏览器面板 UI)只"存储作参考,不自动挂载"——所以固化的 wish 是 host-only,右侧面板不会自动出现。结论不变:**完整可交互 UI 仍需动态形态或原生 Remote**;dsh-genie 是"host 侧固化 + 免构建授权"的便利路线,不是 UI 可安装的最终解。
