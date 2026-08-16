@@ -12,6 +12,8 @@ Inspired by the VS Code / Cursor project tree, filling the gap of a missing dire
 
 > An interactive **mock** of the panel UI — no DeepSeek Harness needed to try it. The real plugin runs inside the Harness web UI as a dynamic Cordis plugin.
 
+![dsh-workspace-explorer demo](demo/preview.gif)
+
 ## Features
 
 - 📂 **Right-side floating panel** — shows the file tree of the current workspace (session cwd); switch workspaces from the dropdown, or register any folder with `+`
@@ -53,7 +55,8 @@ dsh-workspace-explorer/
 ├── manifest.json         # Plugin metadata
 ├── package.json          # Repo metadata (not an npm package)
 ├── demo/
-│   └── index.html        # Interactive mock preview (GitHub Pages)
+│   ├── index.html        # Interactive mock preview (GitHub Pages)
+│   └── preview.gif       # Demo animation (README)
 ├── .github/
 │   └── workflows/
 │       └── pages.yml     # Deploys demo/ to GitHub Pages

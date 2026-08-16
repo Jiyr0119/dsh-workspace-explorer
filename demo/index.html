@@ -53,7 +53,9 @@
   }
 
   /* 左侧:假聊天区 */
-  .demo-chat { position: absolute; inset: 0; display: flex; flex-direction: column; }
+  .demo-chat { position: absolute; inset: 0; display: flex; flex-direction: column; transition: padding-right .25s ease; }
+  /* 面板打开时,聊天区右侧让出面板宽度,避免发送按钮被遮挡 */
+  .demo-stage.panel-open .demo-chat { padding-right: 404px; }
   .demo-chat-head {
     flex: none; padding: 12px 16px; font-size: 13px; font-weight: 600; color: #cfd6e0;
     border-bottom: 1px solid rgba(255,255,255,.07);
@@ -288,6 +290,7 @@
   // ---------- 渲染 ----------
   function renderPanel() {
     panel.hidden = !state.open
+    document.getElementById('stage').classList.toggle('panel-open', state.open)
     $('toggleBtn').classList.toggle('dshwe-act-on', state.open)
   }
   function renderTree() {

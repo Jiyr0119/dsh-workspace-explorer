@@ -12,6 +12,8 @@
 
 > 这是面板 UI 的交互式**模拟预览**,无需安装 DeepSeek Harness 即可体验。真实插件运行在 Harness Web UI 内(动态 Cordis 插件)。
 
+![dsh-workspace-explorer 演示](demo/preview.gif)
+
 ## 功能特性
 
 - 📂 **右侧浮层面板** — 展示当前工作区(会话 cwd)的目录文件树;顶部下拉可切换其他工作区,或用 `+` 选择文件夹注册为新工作区
@@ -53,7 +55,8 @@ dsh-workspace-explorer/
 ├── manifest.json         # 插件元信息
 ├── package.json          # 仓库元信息(非 npm 包)
 ├── demo/
-│   └── index.html        # 交互式模拟预览(GitHub Pages)
+│   ├── index.html        # 交互式模拟预览(GitHub Pages)
+│   └── preview.gif       # 演示动图(README)
 ├── .github/
 │   └── workflows/
 │       └── pages.yml     # 部署 demo/ 到 GitHub Pages
