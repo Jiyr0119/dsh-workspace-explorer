@@ -1,6 +1,6 @@
 {
   "name": "@jiyr0119/dsh-workspace-explorer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "DeepSeek Harness 工作区文件资源管理器插件(动态 Cordis 插件源码包):右侧目录树面板,点击/拖拽插入文件引用,UI 对齐 DSH 原生风格 | Workspace file explorer plugin for DeepSeek Harness (dynamic Cordis plugin source): right-side file tree panel, click or drag file references into the composer, native DSH look.",
   "license": "MIT",
   "type": "module",
