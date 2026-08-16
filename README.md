@@ -54,7 +54,7 @@ This is a **dynamic Cordis plugin** — no build step, no config changes.
 
 **Install from npm** (source distribution): `npm install @jiyr0119/dsh-workspace-explorer` — the package ships `src/host.js` / `src/client.js` for the paste flow above, with semver releases (no native Remote wiring; see [`docs/native-package.md`](./docs/native-package.md) for the native-package roadmap).
 
-> Installability note: the repo declares a `dsh.bundle` manifest (`cordis.patch.yml` + `index.js`) to satisfy storefront listings; the fully interactive UI is currently the dynamic-plugin form above — a live UI via `dsh plugin add` awaits upstream Remote support (see [`docs/native-package.md`](./docs/native-package.md)).
+> **Real install status**: the full interactive UI ships as a *dynamic plugin* — paste `src/host.js` + `src/client.js` per the steps above. The repo also declares a `dsh.bundle` manifest so storefronts (awesome-dsh-plugin list / dsh-market) will list it, and `dsh plugin add` / one-click storefront installs will mount the host entry cleanly — **but the browser panel will NOT appear from such an install yet**: the browser half needs a native `@Remote` bridge (upstream DSH support; see [`docs/native-package.md`](./docs/native-package.md)). Until that lands, expect a live UI only from the dynamic-plugin paste flow.
 
 See [`docs/install.md`](./docs/install.md) for details.
 

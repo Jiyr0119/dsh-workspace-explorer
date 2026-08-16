@@ -54,7 +54,7 @@
 
 **npm 安装(源码分发)**:`npm install @jiyr0119/dsh-workspace-explorer` — 包内含 `src/host.js` / `src/client.js`,按上面流程粘贴即可,版本随 semver 发布(非原生 Remote 挂载,原生包路线见 [`docs/native-package.md`](./docs/native-package.md))。
 
-> 可安装性说明:仓库已声明 `dsh.bundle` 清单(`cordis.patch.yml` + `index.js`)以满足插件市场收录门槛;完整可交互 UI 当前仍是上面的动态插件形态 —— 通过 `dsh plugin add` 让 UI 生效需要上游 Remote 支持(见 [`docs/native-package.md`](./docs/native-package.md))。
+> **真实安装状态**:完整可交互 UI 以*动态插件*形态提供 —— 按上面步骤粘贴 `src/host.js` + `src/client.js`。仓库同时声明了 `dsh.bundle` 清单,使商店(awesome 列表 / dsh-market)能够收录;`dsh plugin add` / 商店一键安装会让 Host 入口干净挂载 —— **但浏览器面板还不会出现**:浏览器半区需要原生 `@Remote` 桥(依赖上游 DSH 支持,见 [`docs/native-package.md`](./docs/native-package.md))。在那之前,只有动态插件粘贴流程能提供完整 UI。
 
 详细步骤见 [`docs/install.md`](./docs/install.md)。
 
