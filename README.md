@@ -2,6 +2,10 @@
 
 **[English](README.md)** | [中文](README.zh.md)
 
+[![License](https://img.shields.io/github/license/Jiyr0119/dsh-workspace-explorer)](LICENSE)
+[![Pages](https://img.shields.io/github/actions/workflow/status/Jiyr0119/dsh-workspace-explorer/pages.yml?label=pages%20deploy)](https://Jiyr0119.github.io/dsh-workspace-explorer/)
+[![Last commit](https://img.shields.io/github/last-commit/Jiyr0119/dsh-workspace-explorer)](https://github.com/Jiyr0119/dsh-workspace-explorer)
+
 > A workspace file explorer for the DeepSeek Harness Web UI: a right-side panel showing the current workspace's directory tree — click or drag a file to send its reference to the model.
 
 Inspired by the VS Code / Cursor project tree, filling the gap of a missing directory view in DSH after workspaces are added.
@@ -13,6 +17,17 @@ Inspired by the VS Code / Cursor project tree, filling the gap of a missing dire
 > An interactive **mock** of the panel UI — no DeepSeek Harness needed to try it. The real plugin runs inside the Harness web UI as a dynamic Cordis plugin.
 
 ![dsh-workspace-explorer demo](demo/preview.gif)
+
+<details>
+<summary><b>Screenshots</b> · 截图</summary>
+
+![Panel](assets/screenshots/panel.png)
+
+![File tree](assets/screenshots/tree.png)
+
+![Insert & send](assets/screenshots/insert.png)
+
+</details>
 
 ## Features
 

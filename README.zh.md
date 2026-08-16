@@ -2,6 +2,10 @@
 
 [English](README.md) | **中文**
 
+[![License](https://img.shields.io/github/license/Jiyr0119/dsh-workspace-explorer)](LICENSE)
+[![Pages](https://img.shields.io/github/actions/workflow/status/Jiyr0119/dsh-workspace-explorer/pages.yml?label=pages%20deploy)](https://Jiyr0119.github.io/dsh-workspace-explorer/)
+[![Last commit](https://img.shields.io/github/last-commit/Jiyr0119/dsh-workspace-explorer)](https://github.com/Jiyr0119/dsh-workspace-explorer)
+
 > 给 DeepSeek Harness Web UI 的工作区文件资源管理器:右侧面板展示当前工作区目录树,点击或拖拽文件即可把文件引用发给大模型。
 
 灵感来自 VS Code / Cursor 的项目目录树,弥补 DSH 添加工作台后没有目录视图的空白。
@@ -13,6 +17,17 @@
 > 这是面板 UI 的交互式**模拟预览**,无需安装 DeepSeek Harness 即可体验。真实插件运行在 Harness Web UI 内(动态 Cordis 插件)。
 
 ![dsh-workspace-explorer 演示](demo/preview.gif)
+
+<details>
+<summary><b>截图</b> Screenshots</summary>
+
+![面板](assets/screenshots/panel.png)
+
+![目录树](assets/screenshots/tree.png)
+
+![插入并发送](assets/screenshots/insert.png)
+
+</details>
 
 ## 功能特性
 
