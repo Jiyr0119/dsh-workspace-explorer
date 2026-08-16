@@ -136,6 +136,11 @@
   .dshwe-act:hover { background: rgba(255,255,255,.08); color: #e8e8e8; }
   .dshwe-act-on { color: #4176e6; }
   .dshwe-note { padding: 6px 16px; color: #8a8a8a; font-size: 12px; display: flex; align-items: center; gap: 8px; }
+  .demo-send:focus-visible, .dshwe-icobtn:focus-visible, .dshwe-act:focus-visible { outline: 2px solid #4176e6; outline-offset: -2px; }
+  @media (prefers-reduced-motion: reduce) {
+    .demo-chat { transition: none; }
+    .dshwe-chev { transition: none; }
+  }
 </style>
 </head>
 <body>
