@@ -3,12 +3,18 @@
   "version": "0.1.0",
   "description": "DeepSeek Harness 工作区文件资源管理器插件(动态 Cordis 插件源码包):右侧目录树面板,点击/拖拽插入文件引用,UI 对齐 DSH 原生风格 | Workspace file explorer plugin for DeepSeek Harness (dynamic Cordis plugin source): right-side file tree panel, click or drag file references into the composer, native DSH look.",
   "license": "MIT",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
   "publishConfig": {
     "access": "public"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/Jiyr0119/dsh-workspace-explorer.git"
+    "url": "git+https://github.com/Jiyr0119/dsh-workspace-explorer.git"
   },
   "homepage": "https://Jiyr0119.github.io/dsh-workspace-explorer/",
   "keywords": [
@@ -21,6 +27,8 @@
     "ai-tools"
   ],
   "files": [
+    "index.js",
+    "cordis.patch.yml",
     "src",
     "README.md",
     "README.zh.md",
@@ -28,6 +36,12 @@
     "manifest.json"
   ],
   "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    },
     "plugin": {
       "id": "dsh-workspace-explorer",
       "kind": "dynamic-cordis-plugin",

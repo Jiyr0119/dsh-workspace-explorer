@@ -32,6 +32,11 @@ cordis.yml                          # 加两行挂载(host 组合 + web 组合)
 当前 `@jiyr0119/dsh-workspace-explorer` npm 包 = 动态插件源码,提供:
 
 - **npm 存在感 + semver 版本化**:`npm view`、`npm i @jiyr0119/dsh-workspace-explorer` 可见
+
+## 当前状态(2026-08)/ Current status
+
+- ✅ `dsh.bundle`(`cordis.patch.yml`)+ `dsh.client.platform: web` + Host 挂载入口 `index.js` 已声明 —— 满足 awesome-dsh-plugin 列表的**清单门槛**(只查 `dsh.bundle` 是否存在)。
+- ⚠️ **完整可交互安装**(`dsh plugin add` 后 UI 在浏览器生效)仍未达成:静态挂载包拿不到 `harness` 桥(`node:vm` 沙箱只为动态包注入),浏览器 UI 需要原生 Remote(上游 PR)。当前可用形态仍是动态插件:粘贴 `src/host.js` + `src/client.js`。
 - **版本可追溯**:每次发版 = `npm version` + `npm publish`,与 GitHub tag 对应
 - **安装体验**:用户在 DSH 里按 README 把 `src/host.js` / `src/client.js` 粘贴到动态插件面板;代码随版本更新
 
