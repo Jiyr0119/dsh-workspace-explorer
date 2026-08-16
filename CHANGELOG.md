@@ -9,6 +9,9 @@
 - npm 可发布源码包 `@jiyr0119/dsh-workspace-explorer` / npm-publishable source package.
 - 原生 DSH 包路线文档 `docs/native-package.md` / Native-package roadmap doc.
 - 市场截图素材 `assets/screenshots/` / Storefront screenshot assets.
+- 文件名搜索过滤(平铺结果 + 匹配计数)/ Filename search & filter (flat results + match count).
+- 文件预览(前 60 行)与小文件内联插入(≤32KB)/ Inline preview (first 60 lines) + content insertion for small files (≤ 32 KB).
+- `dsh.bundle` 可安装契约(`cordis.patch.yml` + `index.js`)/ `dsh.bundle` installability contract.
 
 ### 变更 Changed
 

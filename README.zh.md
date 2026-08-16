@@ -37,6 +37,8 @@
 - 🖱 **点击插入** — 点击文件行,在输入框末尾追加 `[file: 相对路径]` 引用,发送后模型会用 `read` 读取真实内容
 - 🖱 **拖拽插入** — 拖到输入框内任意位置在光标处插入(带全屏虚线提示);拖到其他位置则追加到末尾
 - 🌓 **跟随主题** — 全部使用 DSH 的 `--dsw-alias-*` 设计 token,浅色/深色自动适配;原生弹窗外观(24px 圆角、lv3 阴影、l3 头部分隔线)
+- 🔍 **搜索过滤** — 按文件名过滤已加载目录,平铺展示结果并显示匹配数
+- 👁 **文件预览** — 预览任意文本文件前 60 行;可插入引用,小文件(≤32KB)可直接插入完整内容
 
 ## 快速开始
 
@@ -91,7 +93,7 @@ dsh-workspace-explorer/
 | 能力 | 机制 |
 |---|---|
 | 目录读取 | Host `fs.resolve` / `fs.listDir` |
-| Host→Client 通信 | `harness.handle('ws-tree.list')` ↔ `host.call(...)` |
+| Host→Client 通信 | `harness.handle('ws-tree.list' / 'ws-tree.peek')` ↔ `host.call(...)` |
 | 右侧面板 | `shell.overlay` 槽位(`useWorkspaces` / `useSessions`) |
 | 开关按钮 | `sidebar.footer.action` 槽位 |
 | 写入输入框 | `conversation.input.dock` → `inputActions.setDraft` |
@@ -105,10 +107,9 @@ dsh-workspace-explorer/
 
 ## Roadmap
 
-- [ ] 小文件拖入可选「内联内容」(类 ChatGPT 上传)
-- [ ] 文件名搜索 / 过滤
-- [ ] 文件预览(前 N 行)
-- [ ] 转成原生 DSH 包(`@Remote` 命名空间)— 见 [`docs/install.md`](./docs/install.md)
+- [x] 文件名搜索 / 过滤
+- [x] 文件预览(前 N 行)+ 小文件内联插入(类 ChatGPT 上传)
+- [ ] 转成原生 DSH 包(`@Remote` 命名空间)— 见 [`docs/native-package.md`](./docs/native-package.md)
 
 ## License
 

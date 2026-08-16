@@ -37,6 +37,8 @@ Inspired by the VS Code / Cursor project tree, filling the gap of a missing dire
 - 🖱 **Click to insert** — click a file row to append a `[file: relative-path]` reference to the composer; after sending, the model resolves it with its `read` tool
 - 🖱 **Drag & drop** — drop a file into the composer to insert at the caret (fullscreen dashed hint); dropping elsewhere appends to the end
 - 🌓 **Theme-aware** — built entirely on DSH's `--dsw-alias-*` design tokens; adapts to light/dark with a native dialog look (24px radius, lv3 shadow, l3 header rule)
+- 🔍 **Search & filter** — filter files by name across loaded directories (flat result list with a match count)
+- 👁 **Inline preview** — peek the first 60 lines of any text file; insert the reference, or paste the full content for small files (≤ 32 KB)
 
 ## Quick Start
 
@@ -91,7 +93,7 @@ dsh-workspace-explorer/
 | Capability | Mechanism |
 |---|---|
 | Directory listing | Host `fs.resolve` / `fs.listDir` |
-| Host→Client RPC | `harness.handle('ws-tree.list')` ↔ `host.call(...)` |
+| Host→Client RPC | `harness.handle('ws-tree.list' / 'ws-tree.peek')` ↔ `host.call(...)` |
 | Panel | `shell.overlay` slot (`useWorkspaces` / `useSessions`) |
 | Toggle button | `sidebar.footer.action` slot |
 | Composer write | `conversation.input.dock` → `inputActions.setDraft` |
@@ -105,10 +107,9 @@ See [CHANGELOG.md](./CHANGELOG.md) for release notes.
 
 ## Roadmap
 
-- [ ] Optional inline content for small files (ChatGPT-style upload)
-- [ ] Filename search & filter
-- [ ] File preview (first N lines)
-- [ ] Native DSH package (`@Remote` namespace) — see [`docs/install.md`](./docs/install.md)
+- [x] Filename search & filter
+- [x] File preview (first N lines) + inline content for small files (ChatGPT-style upload)
+- [ ] Native DSH package (`@Remote` namespace) — see [`docs/native-package.md`](./docs/native-package.md)
 
 ## License
 
