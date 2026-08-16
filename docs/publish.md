@@ -61,3 +61,20 @@ git push origin v0.1.1
 
 建议:仓库 Description 带上 `deepseek-harness`、`cordis`、`plugin` 关键词,方便检索。
 Tip: put `deepseek-harness`, `cordis`, `plugin` in the repo description for discoverability.
+
+## 4. gh CLI 一条龙(已授权)/ One-shot with gh (authenticated)
+
+```bash
+# 设置描述 / 主页 / topics / set description, homepage, topics
+gh repo edit Jiyr0119/dsh-workspace-explorer \
+  --description "DeepSeek Harness 工作区文件资源管理器..." \
+  --homepage "https://jiyr0119.github.io/dsh-workspace-explorer/" \
+  --add-topic deepseek-harness --add-topic cordis --add-topic dsh-plugin
+
+# 发布 Release / create a release (需要先打 tag / tag first)
+git tag v0.1.0 && git push origin v0.1.0
+gh release create v0.1.0 --title "v0.1.0" --notes "..."
+
+# 查看 Pages 状态 / inspect Pages
+gh api repos/Jiyr0119/dsh-workspace-explorer/pages --jq .html_url
+```
