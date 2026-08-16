@@ -1,56 +1,72 @@
 # 原生 DSH 包方案 / Native DSH Package Roadmap
 
-> 说明(诚实版):当前插件是**动态 Cordis 插件**,通过 DSH 动态插件机制(`harness.handle` / `host.call`)实现 Host↔Client 私有 RPC。npm 包发布的是这份动态插件**源码**,用户按"粘贴安装"方式使用。若要做成"cordis.yml 一行挂载"的**原生 DSH 包**,需要改动 DSH 核心仓库 —— 见下文。
+> 当前插件是**动态 Cordis 插件**(粘贴 `src/host.js` + `src/client.js` 安装,依赖动态运行器的 `harness.handle` / `host.call`)。要让 `dsh plugin add` / dsh-market 一键安装后**浏览器面板真正出现**,正解是把插件转成**原生双包**:Host Remote 服务 + Client 浏览器包。**好消息:这条路径不依赖上游核心改造**(见下)。
 
-## 为什么独立包无法自建 Remote
+## 关键发现(2026-08):第三方包可以自建 Remote
 
-- DSH 的浏览器↔Host RPC 契约(`HostApi`)定义在核心仓:`packages/host/apiproxy/src/api/host.ts`
-- Remote 命名空间统一声明在 `packages/api/remotes`(如 `ctx.remote.dynamicCordisRunner`),由核心 Host 包实现,经 `/api` 网关暴露
-- 第三方包**不能**往这份核心契约里加方法;`harness.handle`/`host.call` 桥只由动态插件运行器提供,挂载式原生包拿不到
+之前误以为必须改核心 `HostApi`。实际查证:
 
-因此"原生包"= 对 `deepseek-ai/deepseek-harness` 的一次**上游贡献(PR)**或 fork 改造,而不是独立仓库能独立完成的事。
+- DSH 的 Typert 网关(`@deepseek-ai/dsh-api-gateway` 的 `typertGateway`)会为**任何注册进 `ctx.typert.local` 的 Remote 方法**生成活的 `/api/<namespace>/<method>` 端点,并支持"严格生成定义或保守 SRC 标记(运行时反射)"两种解析。
+- 官方范例:`packages/host/plugin-inventory` —— 一个独立 Host 包,`class PluginInventoryGateway extends TypertRemoteService` + `@Remote('list')`,零核心改动即暴露浏览器可调的 `pluginInventory.list`。
+- 浏览器端:命名空间来自 host 包的**生成产物**(`import pluginInventoryRemote from '@deepseek-ai/dsh-host-plugin-inventory/remote'`),聚合在 `packages/api/remotes` —— 第三方 client 包同样可以直接 import 自己 host 包生成的 `./remote` 绑定,不必进核心聚合。
 
-## 原生方案 PR 需要动的东西(供贡献/fork 参考)
+**结论:第三方"host Remote 服务 + client 浏览器包"双包组合可以做到 `dsh plugin add` 即装即用,不需要上游 PR / fork。**
 
-```
-packages/api/remotes/src/           # 新增命名空间声明(typert/schemastery schema)
-  workspace-explorer.ts             #   listTree(request: {path, rel}) → {entries, truncated}
-packages/host/workspace-explorer/   # 新增 Host 包(参考 packages/host/directory-picker-browse)
-  src/index.ts                      #   ctx.get('fs') 列目录,能力对象注入
-  package.json                      #   name: @deepseek-ai/dsh-host-workspace-explorer
-packages/client/ui-workspace-explorer/  # 新增 Client 包(参考 ui-directory-picker-browse)
-  src/client/ExplorerPanel.tsx      #   面板(本项目 src/client.js 的 TSX 移植)
-  src/client/ExplorerPanel.module.css #   样式(本项目 CSS 的 module 化)
-  package.json                      #   name: @deepseek-ai/dsh-client-ui-workspace-explorer
-cordis.yml                          # 加两行挂载(host 组合 + web 组合)
-```
+## 原生双包改造计划(推荐)
 
-配套改造点:Host `fs` 服务对浏览器暴露的权限围栏(browse capability)、`RpcRequest/RpcResponse` 包裹、`@Remote` 方法的 signal 透传、`DirectoryListing` 类似的结构化返回。
+### Phase 1 — Host 包 `@jiyr0119/dsh-host-workspace-explorer`
 
-## 在贡献之前,可以先用 npm 源码包
+仿照 `packages/host/plugin-inventory/src/index.ts`:
 
-当前 `@jiyr0119/dsh-workspace-explorer` npm 包 = 动态插件源码,提供:
+```ts
+import { TypertRemoteService, Remote } from '@deepseek-ai/dsh-typert-protocol'
 
-- **npm 存在感 + semver 版本化**:`npm view`、`npm i @jiyr0119/dsh-workspace-explorer` 可见
+export class WorkspaceExplorerGateway extends TypertRemoteService {
+  static inject = ['fs']
+  constructor(ctx: Context) { super(ctx, 'workspaceExplorer') }
 
-## 当前状态(2026-08)/ Current status
+  @Remote('listTree')
+  listTree(request: { path: string; rel: string }): Promise<{ entries: WsEntry[]; truncated: boolean }> {
+    // 移植 src/host.js 的列目录逻辑(ctx.fs.resolve/listDir/processPath)
+  }
 
-- ✅ `dsh.bundle`(`cordis.patch.yml`)+ `dsh.client.platform: web` + Host 挂载入口 `index.js` 已声明 —— 满足 awesome-dsh-plugin 列表的**清单门槛**(只查 `dsh.bundle` 是否存在)。
-- ⚠️ **完整可交互安装**(`dsh plugin add` 后 UI 在浏览器生效)仍未达成:静态挂载包拿不到 `harness` 桥(`node:vm` 沙箱只为动态包注入),浏览器 UI 需要原生 Remote(上游 PR)。当前可用形态仍是动态插件:粘贴 `src/host.js` + `src/client.js`。
-- **版本可追溯**:每次发版 = `npm version` + `npm publish`,与 GitHub tag 对应
-- **安装体验**:用户在 DSH 里按 README 把 `src/host.js` / `src/client.js` 粘贴到动态插件面板;代码随版本更新
-
-当 DSH 官方插件生态(或你的 fork)支持自定义 Remote 后,再按上文 PR 清单升级为原生包。
-
-## 中间路线:dsh-genie 固化(2026-08)/ Intermediate route: dsh-genie
-
-[`swaylq/dsh-genie`](https://github.com/swaylq/dsh-genie)(awesome 列表收录)把"动态插件跨重启存活"做成了工具,维护者 fkysly 在 issue #1142 里点名推荐:
-
-```sh
-# 一次性安装(之后重启 dsh)
-dsh plugin --profile web add github:swaylq/dsh-genie
+  @Remote('peek')
+  peek(request: { path: string }): Promise<PeekResult> {
+    // 移植 ws-tree.peek(stat + readBytes + 前 60 行)
+  }
+}
+export default WorkspaceExplorerGateway
 ```
 
-会话内流程:Agent 用 `cordis_define` 粘贴本插件(host.js + client.js)→ 你试用 → 说"keep it" → Agent 调 `genie_keep` → 插件写入 `$DSH_HOME/genie/`(package.json + cordis.patch.yml + index.js,与我们的仓库结构一致),重启后 **Host 半区仍存活**。
+- 用 typert 生成 `./typert` + `./remote` 产物(生成器在 DSH 仓 `packages/typert/generator`;若第三方不可用,网关的 **SRC 标记运行时反射**也能解析,代码可照常发布)
+- cordis 行:`- id: host-workspace-explorer, name: @jiyr0119/dsh-host-workspace-explorer`
 
-**能力边界(来自 genie 源码)**:`client` 半区(浏览器面板 UI)只"存储作参考,不自动挂载"——所以固化的 wish 是 host-only,右侧面板不会自动出现。结论不变:**完整可交互 UI 仍需动态形态或原生 Remote**;dsh-genie 是"host 侧固化 + 免构建授权"的便利路线,不是 UI 可安装的最终解。
+### Phase 2 — Client 包 `@jiyr0119/dsh-client-ui-workspace-explorer`
+
+- 把 `src/client.js` 的组件移植为 **TSX**(`ExplorerPanel.tsx` + `ExplorerPanel.module.css` + `icons.tsx`),参考 `ui-directory-picker-browse` 的包结构(package.json 带 `dsh.client.platform: web`、tsdown 构建出 `lib/`)
+- 用生成绑定调用 Host(替换 `host.call`):`import { workspaceExplorerRemote } from '@jiyr0119/dsh-host-workspace-explorer/remote'` → `ctx.remote.workspaceExplorer.listTree({path, rel})`
+- 槽位注册不变(`shell.overlay` / `sidebar.footer.action` / `conversation.input.dock`),i18n 用 `ctx.locale`(已实现,直接移植)
+
+### Phase 3 — 组合接线与发布
+
+- `cordis.patch.yml` 改为插入两行(host + client)
+- 两个包发 npm;用户 `dsh plugin --profile web add @jiyr0119/dsh-host-workspace-explorer @jiyr0119/dsh-client-ui-workspace-explorer`(market 一键安装走同一机制)
+- 结果:`dsh plugin add` 后**浏览器面板完整出现**,和动态粘贴版功能一致
+
+## 三条路线对比
+
+| 路线 | 安装方式 | 浏览器 UI | 工作量 |
+|---|---|---|---|
+| 动态插件(现状) | 粘贴 host.js+client.js | ✅ | 0 |
+| **原生双包(推荐)** | `dsh plugin add` / market 一键 | ✅ | 中:TSX 移植 + typert 接线 + 双包发布 |
+| 上游 Remote PR | 同上 | ✅ | 大:核心仓改动 + 合入上游 |
+
+## 中间路线:dsh-genie 固化(2026-08)
+
+[`swaylq/dsh-genie`](https://github.com/swaylq/dsh-genie) 提供 `genie_keep` 把动态插件固化到 `$DSH_HOME/genie/`(package.json + cordis.patch.yml + index.js),重启后 **Host 半区存活**,免 pnpm/免构建授权。**边界(来自 genie 源码)**:client 半区只存档不挂载 —— 面板不会自动出现,是 host 侧固化的便利路线,不是 UI 可安装的最终解。
+
+## 当前状态(2026-08)
+
+- ✅ `dsh.bundle` + `cordis.patch.yml` + `index.js` 已声明:满足 awesome 列表门槛;`dsh plugin add` 会让 host 入口干净挂载但**无 UI**
+- ✅ npm 源码包 `@jiyr0119/dsh-workspace-explorer`(0.1.1)
+- ⏳ 原生双包改造(Phase 1-3)是让市场一键安装出 UI 的下一步
