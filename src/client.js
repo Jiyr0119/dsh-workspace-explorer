@@ -354,13 +354,18 @@ return {
           onClick: isDir ? () => toggle(entry.rel) : () => insertMarker(entry),
           onKeyDown: (ev) => {
             if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); if (isDir) toggle(entry.rel); else insertMarker(entry) }
+            else if (ev.key === 'p' && !isDir) { ev.preventDefault(); openPreview(entry) }
           },
         },
           el('span', { className: 'dshwe-chev-slot' }, isDir ? chevronSvg(isExp) : null),
           iconFor(entry, isExp),
           el('span', { className: 'dshwe-name' }, entry.name),
           !isDir && entry.size != null ? el('span', { className: 'dshwe-size' }, fmtSize(entry.size)) : null,
-          !isDir ? el('span', { className: 'dshwe-eye', title: '预览', role: 'button', onClick: (e) => { e.stopPropagation(); openPreview(entry) } }, eyeSvg) : null,
+          !isDir ? el('span', {
+            className: 'dshwe-eye', title: '预览 (P)', role: 'button',
+            onMouseDown: (e) => { e.preventDefault(); e.stopPropagation(); openPreview(entry) },
+            onClick: (e) => { e.stopPropagation() },
+          }, eyeSvg) : null,
           !isDir ? el('span', { className: 'dshwe-insert', title: '插入引用' }, insertSvg) : null,
         )
       }
