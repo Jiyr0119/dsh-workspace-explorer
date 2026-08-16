@@ -1,0 +1,23 @@
+# awesome-dsh-plugin 提交草稿 / Submission draft (not part of this repo's runtime)
+#
+# 达标后(≥10 commits + 维护者答复 dsh.bundle 问题),把下面内容粘贴到 awesome 仓库:
+#   data/plugins/Jiyr0119__dsh-workspace-explorer.yml
+# 并把 screenshots 列表合并进 awesome 仓库的 data/screenshots.json(以仓库 URL 为 key)。
+#
+# Paste into the awesome repo when eligible:
+#   data/plugins/Jiyr0119__dsh-workspace-explorer.yml
+# and merge the screenshots list into data/screenshots.json keyed by the repo URL.
+
+url: https://github.com/Jiyr0119/dsh-workspace-explorer
+name: Jiyr0119/dsh-workspace-explorer
+category: ui
+description:
+  en: Workspace file-tree panel for the DSH web UI, with click or drag-to-composer file references.
+  zh: 为 DSH Web UI 提供工作区文件树面板,点击或拖拽文件引用到输入框。
+
+# data/screenshots.json 条目(1-8 张,GitHub 托管)/ entry for data/screenshots.json
+# "https://github.com/Jiyr0119/dsh-workspace-explorer": [
+#   "https://raw.githubusercontent.com/Jiyr0119/dsh-workspace-explorer/main/assets/screenshots/panel.png",
+#   "https://raw.githubusercontent.com/Jiyr0119/dsh-workspace-explorer/main/assets/screenshots/tree.png",
+#   "https://raw.githubusercontent.com/Jiyr0119/dsh-workspace-explorer/main/assets/screenshots/insert.png"
+# ]
