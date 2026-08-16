@@ -2,16 +2,108 @@
 //
 // 在 DeepSeek Harness 的动态插件“Client 代码”框中粘贴本文件内容即可。
 // 职责：右侧浮层面板（对齐 DSH 原生弹窗风格）+ 工作区文件树 + 文件类型图标 +
-// 点击/拖拽插入引用 + 文件名搜索过滤 + 文件预览（前 60 行 / 小文件内联插入）。
+// 点击/拖拽插入引用 + 文件名搜索过滤 + 文件预览（前 60 行 / 小文件内联插入）+
+// 国际化（zh/en 词典，跟随 DSH 界面语言）。
 // 注意：动态插件要求纯 JavaScript + React.createElement，禁止 import / TypeScript / JSX。
 return {
   apply(ctx) {
     const slots = ctx.get('slots')
     if (slots === undefined) return
     const workspacesSvc = ctx.get('workspaces')
+    const locale = ctx.get('locale')
 
     const MARKER = 'application/x-dsh-ws-file'
     const el = React.createElement
+
+    // ---- 国际化：注册 zh/en 词典，跟随 DSH 界面语言 ----
+    const NS = 'dsh-workspace-explorer'
+    const DICTS = {
+      zh: {
+        'panel.title': '工作区文件',
+        'ws.current': '当前目录',
+        'search.ph': '搜索文件(仅已加载目录)…',
+        'hint': '点击文件或拖拽到输入框,发送给模型',
+        'empty.title': '还没有可浏览的工作区。选择一个项目文件夹,即可在这里查看目录文件。',
+        'empty.add': '+ 选择文件夹作为工作区',
+        'loading.ws': '正在加载工作区…',
+        'hit': '匹配 {n} 项',
+        'hit.none': '没有匹配「{q}」的文件(搜索范围:已加载目录)',
+        'truncated': '已截断,仅显示前 {n} 项',
+        'loading': '加载中…',
+        'load.fail': '加载失败: ',
+        'read': '读取中…',
+        'read.fail': '读取失败: ',
+        'too.large': '文件过大({s}),仅支持插入引用',
+        'binary': '二进制文件,仅支持插入引用',
+        'lines.tail': '…(共 {n} 行,仅显示前 60 行)',
+        'btn.ref': '插入引用',
+        'btn.content': '插入内容',
+        'btn.content.tip': '把文件内容插入输入框',
+        'btn.content.no': '文件过大或二进制,无法内联',
+        'sidebar.tooltip': '工作区文件',
+        'sidebar.label': '文件',
+        'refresh': '刷新',
+        'close': '关闭',
+        'close.preview': '关闭预览',
+        'row.tip': '点击或拖拽到输入框',
+        'preview.tip': '预览 (P)',
+        'insert.tip': '插入引用',
+        'drop.hint': '松开以插入文件引用到输入框',
+        'add.ws': '添加工作区',
+      },
+      en: {
+        'panel.title': 'Workspace Files',
+        'ws.current': 'Current dir',
+        'search.ph': 'Search files (loaded dirs only)…',
+        'hint': 'Click a file or drag it into the composer to send',
+        'empty.title': 'No browsable workspace yet. Pick a project folder to view its files.',
+        'empty.add': '+ Choose a folder as workspace',
+        'loading.ws': 'Loading workspaces…',
+        'hit': '{n} match(es)',
+        'hit.none': 'No files match "{q}" (search covers loaded dirs)',
+        'truncated': 'Truncated: showing the first {n}',
+        'loading': 'Loading…',
+        'load.fail': 'Load failed: ',
+        'read': 'Reading…',
+        'read.fail': 'Read failed: ',
+        'too.large': 'File too large ({s}); reference only',
+        'binary': 'Binary file; reference only',
+        'lines.tail': '…({n} lines total, showing the first 60)',
+        'btn.ref': 'Insert reference',
+        'btn.content': 'Insert content',
+        'btn.content.tip': 'Insert the file content into the composer',
+        'btn.content.no': 'Too large or binary — cannot inline',
+        'sidebar.tooltip': 'Workspace Files',
+        'sidebar.label': 'Files',
+        'refresh': 'Refresh',
+        'close': 'Close',
+        'close.preview': 'Close preview',
+        'row.tip': 'click or drag to the composer',
+        'preview.tip': 'Preview (P)',
+        'insert.tip': 'Insert reference',
+        'drop.hint': 'Release to insert the file reference into the composer',
+        'add.ws': 'Add workspace',
+      },
+    }
+    let tr = (k, vars) => { let s = DICTS.zh[k] || k; if (vars) for (const key in vars) s = s.split('{' + key + '}').join(String(vars[key])); return s }
+    if (locale !== undefined) {
+      try {
+        ctx.effect(() => {
+          const d1 = locale.register(NS, 'zh', DICTS.zh)
+          const d2 = locale.register(NS, 'en', DICTS.en)
+          return () => { d1(); d2() }
+        })
+        const t = locale.bind(NS)
+        tr = (k, vars) => {
+          let s = t(k)
+          if (typeof s !== 'string' || s === k) s = DICTS.zh[k] || k
+          if (vars) for (const key in vars) s = s.split('{' + key + '}').join(String(vars[key]))
+          return s
+        }
+      } catch (err) {
+        console.warn('locale init failed, fallback zh', String(err && err.message ? err.message : err))
+      }
+    }
 
     styles.insert(`
 .dshwe-layer { position: fixed; inset: 0; z-index: 100; pointer-events: none; }
@@ -208,13 +300,13 @@ return {
         type: 'button',
         className: 'dshwe-act' + (on ? ' dshwe-act-on' : ''),
         onClick: () => setOpen(!getOpen()),
-        title: '工作区文件',
-        'aria-label': '工作区文件',
+        title: tr('sidebar.tooltip'),
+        'aria-label': tr('sidebar.tooltip'),
         'aria-pressed': on,
       },
         el('svg', { viewBox: '0 0 16 16', width: 16, height: 16, 'aria-hidden': true },
           el('path', { d: FOLDER_D, fill: 'currentColor' })),
-        wide ? el('span', null, '文件') : null,
+        wide ? el('span', null, tr('sidebar.label')) : null,
       )
     }
 
@@ -348,7 +440,7 @@ return {
           type: 'button',
           className: 'dshwe-row' + (isDir ? ' dshwe-row-dir' : ' dshwe-row-file') + (isExp ? ' dshwe-row-exp' : ''),
           style: { paddingLeft: 10 + depth * 16 },
-          title: entry.path + (isDir ? '' : ' · 点击或拖拽到输入框'),
+          title: entry.path + (isDir ? '' : ' · ' + tr('row.tip')),
           draggable: !isDir,
           onDragStart: isDir ? undefined : (ev) => onDragStart(ev, entry),
           onClick: isDir ? () => toggle(entry.rel) : () => insertMarker(entry),
@@ -362,11 +454,11 @@ return {
           el('span', { className: 'dshwe-name' }, entry.name),
           !isDir && entry.size != null ? el('span', { className: 'dshwe-size' }, fmtSize(entry.size)) : null,
           !isDir ? el('span', {
-            className: 'dshwe-eye', title: '预览 (P)', role: 'button',
+            className: 'dshwe-eye', title: tr('preview.tip'), role: 'button',
             onMouseDown: (e) => { e.preventDefault(); e.stopPropagation(); openPreview(entry) },
             onClick: (e) => { e.stopPropagation() },
           }, eyeSvg) : null,
-          !isDir ? el('span', { className: 'dshwe-insert', title: '插入引用' }, insertSvg) : null,
+          !isDir ? el('span', { className: 'dshwe-insert', title: tr('insert.tip') }, insertSvg) : null,
         )
       }
 
@@ -380,68 +472,68 @@ return {
           rows.push(rowFor(entry, depth, isExp))
           if (isExp) rows.push(...renderTree(entry.rel, depth + 1))
         }
-        if (data.truncated) rows.push(el('div', { key: 'trunc', className: 'dshwe-note' }, '已截断,仅显示前 ' + data.entries.length + ' 项'))
-        if (data.loading) rows.push(el('div', { key: 'load', className: 'dshwe-note' }, el('span', { className: 'dshwe-spin' }), '加载中…'))
-        if (data.error) rows.push(el('div', { key: 'err', className: 'dshwe-note dshwe-note-err' }, '加载失败: ' + data.error))
+        if (data.truncated) rows.push(el('div', { key: 'trunc', className: 'dshwe-note' }, tr('truncated', { n: data.entries.length })))
+        if (data.loading) rows.push(el('div', { key: 'load', className: 'dshwe-note' }, el('span', { className: 'dshwe-spin' }), tr('loading')))
+        if (data.error) rows.push(el('div', { key: 'err', className: 'dshwe-note dshwe-note-err' }, tr('load.fail') + data.error))
         return rows
       }
 
+      const options = []
+      if (cwd) options.push({ value: cwd, label: tr('ws.current') + ' · ' + basename(cwd) })
+      for (const w of workspaces) options.push({ value: w.path, label: w.title + ' · ' + w.path })
+      const seen = new Set()
+      const uniqOptions = options.filter((o) => { if (seen.has(o.value)) return false; seen.add(o.value); return true })
+
+      const rootLabel = root ? basename(root) : ''
       let body
       if (q !== '') {
         const hits = []
         collectMatches('', 0, hits)
         const hitRows = hits.length
           ? hits.map((h) => rowFor(h.entry, 0, false))
-          : el('div', { className: 'dshwe-empty' }, '没有匹配「' + filter + '」的文件(搜索范围:已加载目录)')
-        body = [el('div', { key: 'hit-note', className: 'dshwe-note' }, '匹配 ' + hits.length + ' 项'), hitRows]
+          : el('div', { className: 'dshwe-empty' }, tr('hit.none', { q: filter }))
+        body = [el('div', { key: 'hit-note', className: 'dshwe-note' }, tr('hit', { n: hits.length })), hitRows]
       } else if (wsState.state === 'loading' && (workspaces.length === 0)) {
         body = el('div', { className: 'dshwe-empty' },
-          el('div', { className: 'dshwe-note' }, el('span', { className: 'dshwe-spin' }), '正在加载工作区…'))
+          el('div', { className: 'dshwe-note' }, el('span', { className: 'dshwe-spin' }), tr('loading.ws')))
       } else if (root === null) {
         body = el('div', { className: 'dshwe-empty' },
           el('div', { className: 'dshwe-empty-ico' }, headFolderSvg),
-          el('div', null, '还没有可浏览的工作区。选择一个项目文件夹,即可在这里查看目录文件。'),
-          el('button', { type: 'button', className: 'dshwe-addbtn', onClick: addWorkspace }, '+ 选择文件夹作为工作区'),
+          el('div', null, tr('empty.title')),
+          el('button', { type: 'button', className: 'dshwe-addbtn', onClick: addWorkspace }, tr('empty.add')),
         )
       } else {
         body = renderTree('', 0)
       }
 
-      const options = []
-      if (cwd) options.push({ value: cwd, label: '当前目录 · ' + basename(cwd) })
-      for (const w of workspaces) options.push({ value: w.path, label: w.title + ' · ' + w.path })
-      const seen = new Set()
-      const uniqOptions = options.filter((o) => { if (seen.has(o.value)) return false; seen.add(o.value); return true })
-
-      const rootLabel = root ? basename(root) : ''
       let pv = null
       if (preview) {
         const d = preview.data
         let contentArea
         if (preview.loading) {
-          contentArea = el('div', { className: 'dshwe-note' }, el('span', { className: 'dshwe-spin' }), '读取中…')
+          contentArea = el('div', { className: 'dshwe-note' }, el('span', { className: 'dshwe-spin' }), tr('read'))
         } else if (preview.error) {
-          contentArea = el('div', { className: 'dshwe-note dshwe-note-err' }, '读取失败: ' + preview.error)
+          contentArea = el('div', { className: 'dshwe-note dshwe-note-err' }, tr('read.fail') + preview.error)
         } else if (d.tooLarge) {
-          contentArea = el('div', { className: 'dshwe-note' }, '文件过大(' + fmtSize(d.size) + '),仅支持插入引用')
+          contentArea = el('div', { className: 'dshwe-note' }, tr('too.large', { s: fmtSize(d.size) }))
         } else if (d.binary) {
-          contentArea = el('div', { className: 'dshwe-note' }, '二进制文件,仅支持插入引用')
+          contentArea = el('div', { className: 'dshwe-note' }, tr('binary'))
         } else {
-          contentArea = el('pre', { className: 'dshwe-preview-pre' }, d.content + (d.truncatedLines ? '\n…(共 ' + d.lineCount + ' 行,仅显示前 60 行)' : ''))
+          contentArea = el('pre', { className: 'dshwe-preview-pre' }, d.content + (d.truncatedLines ? '\n' + tr('lines.tail', { n: d.lineCount }) : ''))
         }
         const canInline = !preview.loading && !preview.error && d && !d.tooLarge && !d.binary && d.size <= 32768
         pv = el('div', { className: 'dshwe-preview' },
           el('div', { className: 'dshwe-preview-head' },
             el('div', { className: 'dshwe-preview-name' }, preview.entry.name),
             el('div', { className: 'dshwe-preview-meta' }, preview.entry.size != null ? fmtSize(preview.entry.size) : ''),
-            el('button', { type: 'button', className: 'dshwe-icobtn', onClick: () => setPreview(null), title: '关闭预览', 'aria-label': '关闭预览' },
+            el('button', { type: 'button', className: 'dshwe-icobtn', onClick: () => setPreview(null), title: tr('close.preview'), 'aria-label': tr('close.preview') },
               el('svg', { viewBox: '0 0 16 16', width: 13, height: 13, 'aria-hidden': true },
                 el('path', { d: 'M4 4l8 8M12 4l-8 8', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round' }))),
           ),
           contentArea,
           el('div', { className: 'dshwe-preview-actions' },
-            el('button', { type: 'button', className: 'dshwe-prevbtn', onClick: () => insertMarker(preview.entry) }, '插入引用'),
-            el('button', { type: 'button', className: 'dshwe-prevbtn primary', disabled: !canInline, title: canInline ? '把文件内容插入输入框' : '文件过大或二进制,无法内联', onClick: insertContent }, '插入内容'),
+            el('button', { type: 'button', className: 'dshwe-prevbtn', onClick: () => insertMarker(preview.entry) }, tr('btn.ref')),
+            el('button', { type: 'button', className: 'dshwe-prevbtn primary', disabled: !canInline, title: canInline ? tr('btn.content.tip') : tr('btn.content.no'), onClick: insertContent }, tr('btn.content')),
           ),
         )
       }
@@ -449,29 +541,29 @@ return {
       return el('div', { className: 'dshwe-panel' },
         el('div', { className: 'dshwe-head' },
           el('span', { className: 'dshwe-head-ico' }, headFolderSvg),
-          el('div', { className: 'dshwe-title' }, '工作区文件' + (rootLabel ? ' · ' + rootLabel : '')),
-          el('button', { type: 'button', className: 'dshwe-icobtn', onClick: refresh, title: '刷新', 'aria-label': '刷新' },
+          el('div', { className: 'dshwe-title' }, tr('panel.title') + (rootLabel ? ' · ' + rootLabel : '')),
+          el('button', { type: 'button', className: 'dshwe-icobtn', onClick: refresh, title: tr('refresh'), 'aria-label': tr('refresh') },
             el('svg', { viewBox: '0 0 16 16', width: 14, height: 14, 'aria-hidden': true },
               el('path', { d: 'M13.5 8a5.5 5.5 0 1 1-1.61-3.89M13.5 1.5v3h-3', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round' }))),
-          el('button', { type: 'button', className: 'dshwe-icobtn', onClick: () => setOpen(false), title: '关闭', 'aria-label': '关闭' },
+          el('button', { type: 'button', className: 'dshwe-icobtn', onClick: () => setOpen(false), title: tr('close'), 'aria-label': tr('close') },
             el('svg', { viewBox: '0 0 16 16', width: 14, height: 14, 'aria-hidden': true },
               el('path', { d: 'M4 4l8 8M12 4l-8 8', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round' }))),
         ),
         el('div', { className: 'dshwe-selrow' },
           el('select', { className: 'dshwe-sel', value: root || '', onChange: (e) => setRoot(e.target.value) },
             uniqOptions.map((o) => el('option', { key: o.value, value: o.value }, o.label))),
-          el('button', { type: 'button', className: 'dshwe-addbtn', onClick: addWorkspace, title: '添加工作区' }, '+'),
+          el('button', { type: 'button', className: 'dshwe-addbtn', onClick: addWorkspace, title: tr('add.ws') }, '+'),
         ),
         el('div', { className: 'dshwe-filterrow' },
           el('input', {
-            className: 'dshwe-filter', type: 'text', value: filter, placeholder: '搜索文件(仅已加载目录)…',
+            className: 'dshwe-filter', type: 'text', value: filter, placeholder: tr('search.ph'),
             onChange: (e) => setFilter(e.target.value),
           }),
-          filter !== '' ? el('button', { type: 'button', className: 'dshwe-filter-clear', onClick: () => setFilter(''), title: '清除', 'aria-label': '清除' },
+          filter !== '' ? el('button', { type: 'button', className: 'dshwe-filter-clear', onClick: () => setFilter(''), title: tr('close'), 'aria-label': tr('close') },
             el('svg', { viewBox: '0 0 16 16', width: 12, height: 12, 'aria-hidden': true },
               el('path', { d: 'M4 4l8 8M12 4l-8 8', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round' }))) : null,
         ),
-        el('div', { className: 'dshwe-hintline' }, el('span', null, '↩'), '点击文件或拖拽到输入框,发送给模型'),
+        el('div', { className: 'dshwe-hintline' }, el('span', null, '↩'), tr('hint')),
         el('div', { className: 'dshwe-tree' }, body),
         pv,
       )
@@ -520,7 +612,7 @@ return {
       }, [])
 
       return el('div', { className: 'dshwe-layer' },
-        dragging ? el('div', { className: 'dshwe-hint' }, el('div', { className: 'dshwe-hint-chip' }, dropSvg, '松开以插入文件引用到输入框')) : null,
+        dragging ? el('div', { className: 'dshwe-hint' }, el('div', { className: 'dshwe-hint-chip' }, dropSvg, tr('drop.hint'))) : null,
         on ? el(Panel, { ...props, onDraggingChange: setDragging }) : null,
       )
     }

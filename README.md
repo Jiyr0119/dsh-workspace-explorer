@@ -39,6 +39,7 @@ Inspired by the VS Code / Cursor project tree, filling the gap of a missing dire
 - 🌓 **Theme-aware** — built entirely on DSH's `--dsw-alias-*` design tokens; adapts to light/dark with a native dialog look (24px radius, lv3 shadow, l3 header rule)
 - 🔍 **Search & filter** — filter files by name across loaded directories (flat result list with a match count)
 - 👁 **Inline preview** — peek the first 60 lines of any text file; insert the reference, or paste the full content for small files (≤ 32 KB)
+- 🌐 **i18n** — zh/en dictionaries registered through DSH's locale service; the panel follows the DSH UI language
 
 ## Quick Start
 
