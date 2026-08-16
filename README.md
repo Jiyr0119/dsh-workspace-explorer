@@ -43,18 +43,24 @@ Inspired by the VS Code / Cursor project tree, filling the gap of a missing dire
 
 ## Quick Start
 
-### Installation
+### Installation & usage
 
-This is a **dynamic Cordis plugin** — no build step, no config changes.
+**Way 1 · Dynamic plugin paste — full UI (recommended)**
+A *dynamic Cordis plugin*: no build step, no config changes.
 
 1. In the DSH web UI, have an agent run `cordis_define` (or use the dynamic plugin panel) with `idPrefix` `wsex`.
 2. Paste the whole [`src/host.js`](./src/host.js) into **Host code**.
 3. Paste the whole [`src/client.js`](./src/client.js) into **Client code**.
 4. `cordis_run` to activate; authorize on the Run card when it first appears.
+5. Click the 📁 **Files** button at the bottom of the sidebar → expand directories → click a file, or drag it into the composer, then send.
 
-**Install from npm** (source distribution): `npm install @jiyr0119/dsh-workspace-explorer` — the package ships `src/host.js` / `src/client.js` for the paste flow above, with semver releases (no native Remote wiring; see [`docs/native-package.md`](./docs/native-package.md) for the native-package roadmap).
+**Way 2 · npm source package**
+`npm install @jiyr0119/dsh-workspace-explorer` — the package ships `src/host.js` / `src/client.js` for the Way-1 paste flow, with semver releases.
 
-> **Real install status**: the full interactive UI ships as a *dynamic plugin* — paste `src/host.js` + `src/client.js` per the steps above. The repo also declares a `dsh.bundle` manifest so storefronts (awesome-dsh-plugin list / dsh-market) will list it, and `dsh plugin add` / one-click storefront installs will mount the host entry cleanly — **but the browser panel will NOT appear from such an install yet**: the browser half needs a native `@Remote` bridge (upstream DSH support; see [`docs/native-package.md`](./docs/native-package.md)). Until that lands, expect a live UI only from the dynamic-plugin paste flow.
+**Way 3 · Storefront (`dsh plugin add` / dsh-market) — listed, but no UI yet**
+The repo declares a `dsh.bundle` manifest so the awesome-dsh-plugin list and dsh-market can list it and offer a one-click install. **Such an install mounts the host entry cleanly, but the browser panel does NOT appear yet** — the browser half needs the native `@Remote` bridge (conversion in progress; see [`docs/native-package.md`](./docs/native-package.md)).
+
+> ⚠️ **Common misconception**: a plugin-market listing does **not** mean the plugin automatically shows up in every user's browser. A listing only lets users browse it and run the install command. Until the native conversion lands, **only Way 1 provides the full interactive panel**.
 
 See [`docs/install.md`](./docs/install.md) for details.
 

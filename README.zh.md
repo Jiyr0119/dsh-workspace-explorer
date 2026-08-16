@@ -43,18 +43,24 @@
 
 ## 快速开始
 
-### 安装
+### 安装与使用
 
-这是**动态 Cordis 插件**形态,无需构建、无需改任何配置文件。
+**方式一 · 动态插件粘贴 —— 完整 UI(推荐)**
+*动态 Cordis 插件*:无需构建、无需改任何配置。
 
 1. 在 DSH Web UI 中让 Agent 执行 `cordis_define`(或使用动态插件面板),`idPrefix` 填 `wsex`
 2. 将 [`src/host.js`](./src/host.js) 全文粘贴到 **Host 代码**
 3. 将 [`src/client.js`](./src/client.js) 全文粘贴到 **Client 代码**
 4. `cordis_run` 激活,首次出现 Run 卡时点击授权
+5. 点击侧边栏底部 📁「文件」按钮 → 展开目录 → 点击文件,或拖进输入框,然后发送
 
-**npm 安装(源码分发)**:`npm install @jiyr0119/dsh-workspace-explorer` — 包内含 `src/host.js` / `src/client.js`,按上面流程粘贴即可,版本随 semver 发布(非原生 Remote 挂载,原生包路线见 [`docs/native-package.md`](./docs/native-package.md))。
+**方式二 · npm 源码包**
+`npm install @jiyr0119/dsh-workspace-explorer` — 内含 `src/host.js` / `src/client.js`,按方式一粘贴即可,版本随 semver 发布。
 
-> **真实安装状态**:完整可交互 UI 以*动态插件*形态提供 —— 按上面步骤粘贴 `src/host.js` + `src/client.js`。仓库同时声明了 `dsh.bundle` 清单,使商店(awesome 列表 / dsh-market)能够收录;`dsh plugin add` / 商店一键安装会让 Host 入口干净挂载 —— **但浏览器面板还不会出现**:浏览器半区需要原生 `@Remote` 桥(依赖上游 DSH 支持,见 [`docs/native-package.md`](./docs/native-package.md))。在那之前,只有动态插件粘贴流程能提供完整 UI。
+**方式三 · 商店(`dsh plugin add` / dsh-market)— 已收录,但 UI 暂未生效**
+仓库声明了 `dsh.bundle`,awesome 列表与 dsh-market 会收录并提供一键安装。**此类安装会让 Host 入口干净挂载,但浏览器面板还不会出现** —— 浏览器半区需要原生 `@Remote` 桥(改造进行中,见 [`docs/native-package.md`](./docs/native-package.md))。
+
+> ⚠️ **常见误解**:被插件市场收录 ≠ 插件会自动出现在每个用户的浏览器里。收录只表示用户能浏览并执行安装命令;在原生改造完成前,**只有方式一提供完整可交互面板**。
 
 详细步骤见 [`docs/install.md`](./docs/install.md)。
 

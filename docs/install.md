@@ -1,5 +1,15 @@
 # 安装与进阶
 
+## 三种使用方式速览 / Three ways to use
+
+| 方式 | 操作 | 浏览器面板 |
+|---|---|---|
+| **一、动态粘贴(推荐)** | `cordis_define` 粘贴 `src/host.js` + `src/client.js` | ✅ 完整 UI |
+| **二、npm 源码包** | `npm i @jiyr0119/dsh-workspace-explorer`,再按方式一粘贴 | ✅ 完整 UI |
+| **三、商店一键安装** | 列表/market 收录后 `dsh plugin add` 或市场按钮 | ⚠️ Host 挂载成功,**UI 待原生改造**(见 `native-package.md`) |
+
+> ⚠️ **常见误解**:插件市场收录 ≠ 插件自动出现在用户浏览器。收录 = 用户能浏览条目 + 执行安装命令;**目前只有方式一/二有完整 UI**。原生双包改造(host `TypertRemoteService` + client 浏览器包,见 `native-package.md`)完成后,方式三才会即装即用。
+
 ## 方式一:动态插件(当前形态,零构建)
 
 动态 Cordis 插件在 DSH 进程内定义并运行,不落盘到任何配置文件,进程重启后失效。
