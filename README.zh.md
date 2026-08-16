@@ -32,6 +32,8 @@
 3. 将 [`src/client.js`](./src/client.js) 全文粘贴到 **Client 代码**
 4. `cordis_run` 激活,首次出现 Run 卡时点击授权
 
+**npm 安装(源码分发)**:`npm install @jiyr0119/dsh-workspace-explorer` — 包内含 `src/host.js` / `src/client.js`,按上面流程粘贴即可,版本随 semver 发布(非原生 Remote 挂载,原生包路线见 [`docs/native-package.md`](./docs/native-package.md))。
+
 详细步骤见 [`docs/install.md`](./docs/install.md)。
 
 ### 使用
@@ -56,8 +58,9 @@ dsh-workspace-explorer/
 │   └── workflows/
 │       └── pages.yml     # 部署 demo/ 到 GitHub Pages
 ├── docs/
-│   ├── install.md        # 安装与转原生包指南
-│   └── publish.md        # 发布流程
+│   ├── install.md        # 安装指南
+│   ├── native-package.md # 原生 DSH 包路线(上游 PR 草图)
+│   └── publish.md        # 发布流程(GitHub + npm)
 └── src/
     ├── host.js           # Host 半区:fs 列目录 + ws-tree.list RPC
     └── client.js         # Client 半区:面板 + 图标 + 拖拽

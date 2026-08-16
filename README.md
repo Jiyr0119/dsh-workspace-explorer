@@ -32,6 +32,8 @@ This is a **dynamic Cordis plugin** — no build step, no config changes.
 3. Paste the whole [`src/client.js`](./src/client.js) into **Client code**.
 4. `cordis_run` to activate; authorize on the Run card when it first appears.
 
+**Install from npm** (source distribution): `npm install @jiyr0119/dsh-workspace-explorer` — the package ships `src/host.js` / `src/client.js` for the paste flow above, with semver releases (no native Remote wiring; see [`docs/native-package.md`](./docs/native-package.md) for the native-package roadmap).
+
 See [`docs/install.md`](./docs/install.md) for details.
 
 ### Usage
@@ -56,8 +58,9 @@ dsh-workspace-explorer/
 │   └── workflows/
 │       └── pages.yml     # Deploys demo/ to GitHub Pages
 ├── docs/
-│   ├── install.md        # Install & native-package guide
-│   └── publish.md        # Publishing workflow
+│   ├── install.md        # Install guide
+│   ├── native-package.md # Native DSH package roadmap (upstream PR sketch)
+│   └── publish.md        # Publishing workflow (GitHub + npm)
 └── src/
     ├── host.js           # Host half: fs listing + ws-tree.list RPC
     └── client.js         # Client half: panel + icons + drag & drop
