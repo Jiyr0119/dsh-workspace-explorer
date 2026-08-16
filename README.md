@@ -108,9 +108,41 @@ See [CHANGELOG.md](./CHANGELOG.md) for release notes.
 
 ## Roadmap
 
-- [x] Filename search & filter
-- [x] File preview (first N lines) + inline content for small files (ChatGPT-style upload)
-- [ ] Native DSH package (`@Remote` namespace) — see [`docs/native-package.md`](./docs/native-package.md)
+**Done ✅**
+
+- [x] v0.1 core: right-side file tree, click / drag-to-composer references, native DSH look
+- [x] Search & filter; inline preview (first 60 lines); content insertion for small files (≤ 32 KB)
+- [x] i18n (zh/en via the DSH locale service, follows the DSH UI language)
+- [x] Demo language toggle, GitHub Pages preview, demo GIF, storefront screenshots
+- [x] npm source package + `dsh.bundle` contract + awesome-dsh-plugin PR ([#1158](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/1158), pending merge)
+
+**Track A — UX polish**
+
+- [ ] Multi-select & batch insert file references (Shift / Cmd)
+- [ ] Draggable / resizable panel that remembers position & width
+- [ ] Full keyboard navigation (↑↓ to move, Enter to insert, Esc to close)
+- [ ] Path actions: copy path, reveal in the OS file manager
+
+**Track B — Productivity**
+
+- [ ] Content search across loaded dirs (host-side grep)
+- [ ] Recent files / favorites
+- [ ] Paginated preview for large files (next / previous page)
+- [ ] File operations (rename / delete / new, under the fs permission fence)
+
+**Track C — Ecosystem & distribution**
+
+- [x] npm `@jiyr0119/dsh-workspace-explorer` (v0.1.1 publishing)
+- [x] awesome-dsh-plugin listing (PR #1158)
+- [ ] Native DSH package (`@Remote` namespace; needs upstream support) — see [`docs/native-package.md`](./docs/native-package.md)
+- [ ] dsh-genie hardened install (host-side persistence)
+- [ ] CI: lint + e2e + automated release
+
+**Track D — Quality & maintainability**
+
+- [ ] Virtual scrolling (huge directories)
+- [ ] Light / dark theme regression checks
+- [ ] Playwright e2e for the demo and the real plugin
 
 ## License
 

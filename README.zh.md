@@ -108,9 +108,41 @@ dsh-workspace-explorer/
 
 ## Roadmap
 
-- [x] 文件名搜索 / 过滤
-- [x] 文件预览(前 N 行)+ 小文件内联插入(类 ChatGPT 上传)
-- [ ] 转成原生 DSH 包(`@Remote` 命名空间)— 见 [`docs/native-package.md`](./docs/native-package.md)
+**已完成 ✅**
+
+- [x] v0.1 核心:右侧文件树、点击/拖拽插入引用、DSH 原生观感
+- [x] 搜索过滤;内联预览(前 60 行);小文件(≤32KB)内容插入
+- [x] 国际化(zh/en,跟随 DSH 界面语言)
+- [x] 演示页中英切换、GitHub Pages 预览、演示 GIF、市场截图素材
+- [x] npm 源码包 + `dsh.bundle` 契约 + awesome 列表 PR([#1158](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/1158),待合并)
+
+**线路 A — 体验完善**
+
+- [ ] 多选批量插入文件引用(Shift / Cmd)
+- [ ] 面板可拖动/可调宽,记住位置与宽度
+- [ ] 完整键盘导航(↑↓ 选择、Enter 插入、Esc 关闭)
+- [ ] 路径操作:复制路径、在系统文件管理器中显示
+
+**线路 B — 生产力**
+
+- [ ] 跨已加载目录的内容搜索(host 侧 grep)
+- [ ] 最近文件 / 收藏夹
+- [ ] 大文件分页预览(上一页 / 下一页)
+- [ ] 文件操作(重命名 / 删除 / 新建,受 fs 权限围栏约束)
+
+**线路 C — 生态与分发**
+
+- [x] npm 包 `@jiyr0119/dsh-workspace-explorer`(v0.1.1 发布中)
+- [x] awesome-dsh-plugin 收录(PR #1158)
+- [ ] 原生 DSH 包(`@Remote` 命名空间,需上游支持)— 见 [`docs/native-package.md`](./docs/native-package.md)
+- [ ] 接入 dsh-genie 固化安装(host 侧持久化)
+- [ ] CI:lint + e2e + 自动发布
+
+**线路 D — 质量与可维护性**
+
+- [ ] 虚拟滚动(超大目录性能)
+- [ ] 浅 / 深色主题回归检查
+- [ ] Playwright e2e(演示页与真实插件)
 
 ## License
 
