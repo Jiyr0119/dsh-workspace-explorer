@@ -108,7 +108,8 @@ return {
     styles.insert(`
 .dshwe-layer { position: fixed; inset: 0; z-index: 100; pointer-events: none; }
 .dshwe-panel {
-  position: absolute; top: 14px; right: 14px; bottom: 14px; width: 384px;
+  position: absolute; top: 14px; right: 14px; bottom: auto;
+  width: 384px; height: min(640px, calc(100dvh - 110px)); min-height: 320px;
   pointer-events: auto;
   display: flex; flex-direction: column;
   background: var(--dsw-alias-bg-layer-2, #262626);
@@ -170,7 +171,7 @@ return {
 .dshwe-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; }
 .dshwe-row-dir .dshwe-name { font-weight: 600; }
 .dshwe-size { flex: none; color: var(--dsw-alias-label-caption, #8a8a8a); font-size: 11px; font-variant-numeric: tabular-nums; padding-left: 6px; }
-.dshwe-eye, .dshwe-insert { flex: none; display: inline-flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .12s ease; color: var(--dsw-alias-label-secondary, #9a9a9a); }
+.dshwe-eye, .dshwe-insert { flex: none; display: inline-flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .12s ease; color: var(--dsw-alias-label-secondary, #9a9a9a); cursor: pointer; }
 .dshwe-eye:hover { color: var(--dsw-alias-state-business-primary, #4176e6); }
 .dshwe-insert { color: var(--dsw-alias-state-business-primary, #4176e6); }
 .dshwe-row:hover .dshwe-eye, .dshwe-row:hover .dshwe-insert, .dshwe-row:focus-visible .dshwe-insert { opacity: 1; }

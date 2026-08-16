@@ -38,6 +38,11 @@
     border: 1px solid rgba(65,118,230,.35);
     border-radius: 999px; padding: 2px 10px; font-size: 11.5px;
   }
+  .demo-lang {
+    flex: none; cursor: pointer; border: 1px solid rgba(255,255,255,.2); background: transparent;
+    color: #cfd6e0; border-radius: 999px; padding: 2px 10px; font-size: 11.5px;
+  }
+  .demo-lang:hover { border-color: #6ea8fe; color: #fff; }
 
   /* ---- 舞台:模拟 DSH 窗口 ---- */
   .demo-stage {
@@ -90,7 +95,8 @@
   /* ---- 插件面板样式(与 src/client.js 完全一致) ---- */
   .demo-stage .dshwe-layer { position: absolute; inset: 0; z-index: 100; pointer-events: none; }
   .dshwe-panel {
-    position: absolute; top: 14px; right: 14px; bottom: 14px; width: 372px;
+    position: absolute; top: 14px; right: 14px; bottom: auto;
+    width: 384px; height: min(560px, calc(100% - 28px)); min-height: 320px;
     pointer-events: auto;
     display: flex; flex-direction: column;
     background: #26282c;
@@ -150,13 +156,14 @@
     <span>模拟预览 — 与真实插件 UI 一致(文件树面板 + 点击/拖拽插入引用)</span>
     <span>Mock preview of the DeepSeek Harness plugin UI — click a file, or drag it into the composer below.</span>
     <span class="pill">Mock · 非真实运行环境</span>
+    <button type="button" class="demo-lang" id="langBtn">English</button>
     <a href="https://github.com/Jiyr0119/dsh-workspace-explorer" target="_blank" rel="noopener">GitHub ↗</a>
   </div>
 
   <div class="demo-stage" id="stage">
     <div class="demo-chat">
       <div class="demo-chat-head"><span class="dot"></span> DeepSeek Harness · Preview</div>
-      <div class="demo-log" id="log"><div class="demo-log-empty">发送文件引用后,这里会出现 `[file: …]` 消息(模拟)。</div></div>
+      <div class="demo-log" id="log"><div class="demo-log-empty" id="logEmpty">发送文件引用后,这里会出现 `[file: …]` 消息(模拟)。</div></div>
       <div class="demo-composer" id="composerCard">
         <textarea id="composer" placeholder="在此输入… 或点击/拖拽右侧文件"></textarea>
         <div class="demo-composer-bar">
@@ -170,7 +177,7 @@
       <div class="dshwe-hint" id="dropHint" hidden>
         <div class="dshwe-hint-chip">
           <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M8 3.5v6M5.7 7.2L8 9.5l2.3-2.3M3.5 12.5h9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          松开以插入文件引用到输入框
+          <span id="dropHintText">松开以插入文件引用到输入框</span>
         </div>
       </div>
       <div class="dshwe-panel" id="panel" hidden>
@@ -188,7 +195,7 @@
           <select class="dshwe-sel" id="wsSel"></select>
           <button type="button" class="dshwe-icobtn" id="addBtn" title="添加工作区(演示)">+</button>
         </div>
-        <div class="dshwe-hintline">↩ 点击文件或拖拽到输入框,发送给模型</div>
+        <div class="dshwe-hintline"><span>↩</span><span id="hintText">点击文件或拖拽到输入框,发送给模型</span></div>
         <div class="dshwe-tree" id="tree"></div>
       </div>
     </div>
@@ -292,6 +299,39 @@
   })
   wsSel.value = state.ws
 
+  // ---------- 语言切换 ----------
+  var STR = {
+    zh: {
+      'panel.title': '工作区文件', hint: '点击文件或拖拽到输入框,发送给模型',
+      dropHint: '松开以插入文件引用到输入框', composerPh: '在此输入… 或点击/拖拽右侧文件',
+      send: '发送', files: '文件', logEmpty: '发送文件引用后,这里会出现 `[file: …]` 消息(模拟)。',
+      langBtn: 'English', rowTip: '点击或拖拽到输入框', insertTip: '插入引用', refresh: '刷新', close: '关闭'
+    },
+    en: {
+      'panel.title': 'Workspace Files', hint: 'Click a file or drag it into the composer to send',
+      dropHint: 'Release to insert the file reference into the composer', composerPh: 'Type here… or click / drag files on the right',
+      send: 'Send', files: 'Files', logEmpty: 'File references sent here appear as `[file: …]` messages (mock).',
+      langBtn: '中文', rowTip: 'click or drag to the composer', insertTip: 'Insert reference', refresh: 'Refresh', close: 'Close'
+    }
+  }
+  var lang = 'zh'
+  var tr = function (k) { return STR[lang][k] || k }
+  function applyStrings() {
+    $('langBtn').textContent = tr('langBtn')
+    composer.placeholder = tr('composerPh')
+    $('sendBtn').textContent = tr('send')
+    $('toggleBtn').textContent = '📁 ' + tr('files')
+    $('toggleBtn').title = tr('files')
+    var le = document.getElementById('logEmpty'); if (le) le.textContent = tr('logEmpty')
+    var ht = document.getElementById('hintText'); if (ht) ht.textContent = tr('hint')
+    var dh = document.getElementById('dropHintText'); if (dh) dh.textContent = tr('dropHint')
+    $('refreshBtn').title = tr('refresh'); $('refreshBtn').setAttribute('aria-label', tr('refresh'))
+    $('closeBtn').title = tr('close'); $('closeBtn').setAttribute('aria-label', tr('close'))
+    renderPanel()
+    renderTree()
+  }
+  $('langBtn').addEventListener('click', function () { lang = lang === 'zh' ? 'en' : 'zh'; applyStrings() })
+
   // ---------- 渲染 ----------
   function renderPanel() {
     panel.hidden = !state.open
@@ -300,7 +340,7 @@
   }
   function renderTree() {
     var ws = WORKSPACES[state.ws]
-    $('panelTitle').textContent = '工作区文件 · ' + ws.label
+    $('panelTitle').textContent = tr('panel.title') + ' · ' + ws.label
     tree.textContent = ''
     wsSel.value = state.ws
     renderNode(tree, '', ws, 0)
@@ -340,14 +380,14 @@
       row.type = 'button'
       row.className = 'dshwe-row dshwe-row-file'
       row.style.paddingLeft = (10 + depth * 16) + 'px'
-      row.title = rel + ' · 点击或拖拽到输入框'
+      row.title = rel + ' · ' + tr('rowTip')
       row.draggable = true
 
       var slot = document.createElement('span'); slot.className = 'dshwe-chev-slot'; row.appendChild(slot)
       row.appendChild(fileSvg(meta[0], meta[1]))
       var nm = document.createElement('span'); nm.className = 'dshwe-name'; nm.textContent = name; row.appendChild(nm)
       var sz = document.createElement('span'); sz.className = 'dshwe-size'; sz.textContent = fmtSize(size); row.appendChild(sz)
-      var ins = document.createElement('span'); ins.className = 'dshwe-insert'; ins.title = '插入引用'
+      var ins = document.createElement('span'); ins.className = 'dshwe-insert'; ins.title = tr('insertTip')
       ins.appendChild(svg([{ d: 'M8 2.5v7.5M5.7 7.5L8 9.8l2.3-2.3M3.5 12.5h9', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.4, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }], 13))
       row.appendChild(ins)
 
@@ -410,8 +450,7 @@
   document.addEventListener('dragend', function () { dropHint.hidden = true })
 
   // ---------- 初始化 ----------
-  renderPanel()
-  renderTree()
+  applyStrings()
 })()
 </script>
 </body>

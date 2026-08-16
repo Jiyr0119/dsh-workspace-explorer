@@ -12,6 +12,8 @@
 - 文件名搜索过滤(平铺结果 + 匹配计数)/ Filename search & filter (flat results + match count).
 - 文件预览(前 60 行)与小文件内联插入(≤32KB)/ Inline preview (first 60 lines) + content insertion for small files (≤ 32 KB).
 - 国际化:zh/en 词典,面板跟随 DSH 界面语言 / i18n: zh/en dictionaries via the DSH locale service, follows the DSH UI language.
+- 预览/插入图标 hover 小手光标;面板顶部锚定限高,不遮挡底部输入框 / Pointer cursor on preview/insert icons; panel top-anchored with bounded height so the composer stays visible.
+- 演示页支持中英切换 / Demo page language toggle (zh/en).
 - `dsh.bundle` 可安装契约(`cordis.patch.yml` + `index.js`)/ `dsh.bundle` installability contract.
 
 ### 变更 Changed
