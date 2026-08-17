@@ -1,5 +1,26 @@
 # Changelog
 
+## [v0.5.0] - 2026-08-17
+
+### 里程碑 M1 — 读路径体验 Read-path UX
+
+- **多选批量插入** — Shift 点击扩展选择区间、⌘/Ctrl 点击切换选择,选中后底部操作条一键插入:文件 → `[file: 路径]` 引用,目录 → 目录树文本 / **Multi-select & batch insert** — Shift extends the selection range, ⌘/Ctrl toggles; a bottom action bar batch-inserts files as references and folders as compact tree listings.
+- **目录拖拽** — 目录行现在也可拖拽:落点处异步生成**限层数(默认 3 层)的紧凑目录树文本**(`name/` + `├──` 树形,噪声目录过滤、200 条上限),拖入输入框内同样拦截替换为树文本 / **Folder drag & drop** — folders are draggable; on drop the client fetches a depth-limited compact tree listing and inserts it, including drops inside the composer.
+- **分页全量预览** — 预览不再截断在 60 行 / 200KB:上一页 / 下一页按行翻页(每页行数跟随「预览行数」设置),显示总行数与当前页;「插入内容」对小文件(≤32KB)改为整文件取回 / **Paginated full preview** — prev/next paging through the whole file (page size follows the "preview lines" setting) replaces the 60-line / 200 KB cap; "insert content" fetches the entire ≤32 KB file.
+
+### Host
+
+- `/dsh-we/api/peek` 支持 `offset` / `limit` / `whole`:小文件(≤4MB)整读、行数精确;大文件块扫描定位行区间(行数未知);二进制前 8KB 嗅探 / peek now takes offset/limit/whole; ≤4 MB files read whole for exact line counts, larger files page-scanned in chunks, binary sniffed on the first 8 KB.
+- 新增 `/dsh-we/api/tree`:递归收集目录树节点(深度 ≤6、条目预算 ≤200 默认,噪声目录过滤)/ New `/dsh-we/api/tree` route: recursive tree nodes with depth/entry budgets.
+- 动态版同步:新增 `ws-tree.tree` RPC;`ws-tree.peek` 支持 offset/limit/whole(动态备用路径无 offset 读取,>8MB 文件走 tooLarge 优雅降级)/ Dynamic host synced: new `ws-tree.tree` RPC; peek supports paging (the paste-in backup path pages within 8 MB, degrades gracefully beyond).
+
+### 修复 Fix
+
+- **构建顺序修复**:`npm run build` 改为 `tsdown && tsc -p tsconfig.build.json`——此前 tsc 先输出 `lib/types` 再被 tsdown 的 clean 清掉,导致包里 `exports.types` 悬空(TS 用户装包后类型引用报错)/ **Build-order fix**: build now runs `tsdown && tsc -p tsconfig.build.json` — previously tsc emitted `lib/types` and tsdown's clean then wiped it, leaving dangling `exports.types` for TS consumers.
+- 动态 host:`fs.readText` 返回 string,去掉多余的 TextDecoder 解码(此前抛 "The list argument must be …")/ Dynamic host no longer TextDecoder-decodes `fs.readText` strings (it previously threw).
+- 全链路公开链接统一为小写规范域名 `jiyr0119.github.io`(与 GitHub Pages canonical `html_url` 一致)/ All public links normalized to the lowercase canonical `jiyr0119.github.io`.
+- **交互式预览已隐藏**:README 移除在线预览链接与 Pages 徽章,Pages 工作流改为仅手动触发;npm homepage 改指 GitHub 仓库 / **Interactive preview hidden**: the online preview link and the Pages badge were removed from the READMEs, the Pages workflow now runs manually only, and the npm homepage points at the GitHub repo.
+
 ## [v0.4.0] - 2026-08-17
 
 ### 交互重构 Interaction overhaul (popup + file-tree entry)

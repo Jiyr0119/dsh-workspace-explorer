@@ -1,6 +1,6 @@
 {
   "name": "@jiyr0119/dsh-workspace-explorer",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "DeepSeek Harness 工作区文件资源管理器(原生插件):右侧面板展示工作区目录树,点击/拖拽插入文件引用,含搜索/预览/国际化 | Native DSH plugin: workspace file-tree panel with click/drag references, search, preview, i18n.",
   "license": "MIT",
   "type": "module",
@@ -24,7 +24,7 @@
     "type": "git",
     "url": "git+https://github.com/Jiyr0119/dsh-workspace-explorer.git"
   },
-  "homepage": "https://Jiyr0119.github.io/dsh-workspace-explorer/",
+  "homepage": "https://github.com/Jiyr0119/dsh-workspace-explorer",
   "keywords": [
     "deepseek-harness",
     "cordis",
@@ -39,6 +39,9 @@
     "dsh.plugin.json",
     "cordis.patch.yml",
     "dynamic",
+    "docs",
+    "demo",
+    "assets",
     "README.md",
     "README.zh.md",
     "LICENSE",
@@ -73,7 +76,7 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && tsdown",
+    "build": "tsdown && tsc -p tsconfig.build.json",
     "prepublishOnly": "npm run build",
     "typecheck": "tsc --noEmit"
   },

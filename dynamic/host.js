@@ -46,6 +46,33 @@ return {
       return { entries: truncated ? out.slice(0, cfg.max) : out, truncated }
     }
 
+    // 动态备用路径无 offset 读取能力(fs.readBytes 只读文件头),用整读分页;
+    // >8MB 的文件走 tooLarge 优雅降级(原生包无此限制,可块扫描分页)。
+    const PAGE_READ_MAX = 8 * 1024 * 1024
+    const readLinesPage = async (absPath, offset, limit) => {
+      const target = await fs.resolve(absPath)
+      const info = await fs.stat(target)
+      const size = info && typeof info.size === 'number' ? info.size : 0
+      if (size > PAGE_READ_MAX) return { tooLarge: true, size }
+      const text = await fs.readText(target)
+      const lines = text.split('\n')
+      if (lines.length > 0 && lines[lines.length - 1] === '') lines.pop()
+      const page = lines.slice(offset, offset + limit)
+      return { tooLarge: false, size, content: page.join('\n'), startLine: offset, lineCount: lines.length, hasMore: offset + page.length < lines.length }
+    }
+
+    // 递归收集目录树节点(树根相对 rel 从 '' 开始;受深度/条目预算限制)
+    const buildTree = async (absPath, rel, depth, budget, out) => {
+      if (depth < 0 || budget.remaining <= 0) return
+      const { entries } = await listDir(absPath, rel)
+      for (const e of entries) {
+        if (budget.remaining <= 0) break
+        out.push({ name: e.name, type: e.type, rel: e.rel })
+        budget.remaining--
+        if (e.type === 'directory') await buildTree(e.path, e.rel, depth - 1, budget, out)
+      }
+    }
+
     // 配置 RPC:客户端设置页实时生效
     harness.handle('ws-tree.config', async (args) => {
       const a = (args && typeof args === 'object') ? args : {}
@@ -75,7 +102,7 @@ return {
       }
     })
 
-    // 预览:读取文本文件前 N 行(超过 200KB 或二进制则只返回标记)
+    // 预览:按行分页读取文本文件(offset/limit);whole 模式(≤32KB)返回完整内容;二进制拒绝
     harness.handle('ws-tree.peek', async (args) => {
       const a = (args && typeof args === 'object') ? args : {}
       const path = String(a.path || '')
@@ -84,18 +111,47 @@ return {
         const target = await fs.resolve(path)
         const info = await fs.stat(target)
         const size = info && typeof info.size === 'number' ? info.size : 0
-        if (size > cfg.peekMaxBytes) return { ok: true, tooLarge: true, binary: false, size, lineCount: 0, content: '', truncatedLines: false }
-        const buf = await fs.readBytes(target, undefined, Math.max(size, 1))
-        const text = new TextDecoder('utf-8').decode(buf)
-        const binary = text.indexOf('\u0000') >= 0
-        const lines = text.split('\n')
-        const head = lines.slice(0, cfg.peekMaxLines).join('\n')
-        return {
-          ok: true, tooLarge: false, binary, size,
-          content: head, truncatedLines: lines.length > cfg.peekMaxLines, lineCount: lines.length,
+        // 二进制嗅探(前 8KB 找 NUL)
+        let binary = false
+        if (size > 0) {
+          const probe = await fs.readBytes(target, undefined, Math.min(8192, size))
+          binary = probe.indexOf(0) >= 0
         }
+        if (binary) return { ok: true, binary: true, size, lineCount: null, startLine: 0, content: '', hasMore: false }
+        if (a.whole === true && size <= 32 * 1024) {
+          const text = await fs.readText(target)
+          const lines = text.split('\n')
+          if (lines.length > 0 && lines[lines.length - 1] === '') lines.pop()
+          return { ok: true, binary: false, size, lineCount: lines.length, startLine: 0, content: lines.join('\n'), hasMore: false }
+        }
+        const offset = Math.max(0, Math.floor(Number(a.offset) || 0))
+        const limit = Math.min(2000, Math.max(1, Math.floor(Number(a.limit) || cfg.peekMaxLines)))
+        const page = await readLinesPage(target, offset, limit)
+        if (page.tooLarge) return { ok: true, tooLarge: true, binary: false, size: page.size, lineCount: null, startLine: 0, content: '', hasMore: false }
+        return { ok: true, binary: false, size: page.size, content: page.content, startLine: page.startLine, lineCount: page.lineCount, hasMore: page.hasMore }
       } catch (err) {
         console.error('ws-tree.peek failed', String(err && err.message ? err.message : err))
+        return { ok: false, error: String(err && err.message ? err.message : err) }
+      }
+    })
+
+    // 目录树:递归节点(限深/限条目),供目录拖拽与多选批量插入
+    harness.handle('ws-tree.tree', async (args) => {
+      const a = (args && typeof args === 'object') ? args : {}
+      const path = String(a.path || '')
+      if (path === '') return { ok: false, error: 'missing-path' }
+      const depth = Math.min(6, Math.max(1, Math.floor(Number(a.depth) || 3)))
+      const maxEntries = Math.min(1000, Math.max(1, Math.floor(Number(a.maxEntries) || 200)))
+      try {
+        const target = await fs.resolve(path)
+        const cleaned = String(path).replace(/\/+$/, '')
+        const name = cleaned.split('/').pop() || String(path).split('/').pop()
+        const entries = []
+        const budget = { remaining: maxEntries }
+        await buildTree(target, '', depth, budget, entries)
+        return { ok: true, name, entries, entryCount: entries.length, truncated: budget.remaining <= 0 }
+      } catch (err) {
+        console.error('ws-tree.tree failed', String(err && err.message ? err.message : err))
         return { ok: false, error: String(err && err.message ? err.message : err) }
       }
     })

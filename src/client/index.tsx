@@ -27,16 +27,19 @@ const NS = 'dsh-workspace-explorer'
 const DICTS: Record<string, Record<string, string>> = {
   zh: {
     'panel.title': '工作区文件', 'ws.current': '当前目录', 'search.ph': '搜索文件(仅已加载目录)…',
-    hint: '点击文件或拖拽到输入框,发送给模型', 'empty.title': '还没有可浏览的工作区。选择一个项目文件夹,即可在这里查看目录文件。',
+    hint: '点击/拖拽插入;Shift 或 ⌘ 点击可多选批量插入', 'empty.title': '还没有可浏览的工作区。选择一个项目文件夹,即可在这里查看目录文件。',
     'empty.add': '+ 选择文件夹作为工作区', 'loading.ws': '正在加载工作区…', hit: '匹配 {n} 项',
     'hit.none': '没有匹配「{q}」的文件(搜索范围:已加载目录)', truncated: '已截断,仅显示前 {n} 项',
     loading: '加载中…', 'load.fail': '加载失败: ', read: '读取中…', 'read.fail': '读取失败: ',
     'too.large': '文件过大({s}),仅支持插入引用', binary: '二进制文件,仅支持插入引用',
-    'lines.tail': '…(共 {n} 行,仅显示前 {m} 行)', 'btn.ref': '插入引用', 'btn.content': '插入内容',
+    'btn.ref': '插入引用', 'btn.content': '插入内容',
     'btn.content.tip': '把文件内容插入输入框', 'btn.content.no': '文件过大或二进制,无法内联',
     'sidebar.tooltip': '工作区文件', 'sidebar.label': '文件', refresh: '刷新', close: '关闭',
     'close.preview': '关闭预览', 'row.tip': '点击或拖拽到输入框', 'preview.tip': '预览 (P)',
-    'insert.tip': '插入引用', 'drop.hint': '松开以插入文件引用到输入框', 'add.ws': '添加工作区',
+    'insert.tip': '插入引用', 'drop.hint': '松开以插入文件引用到输入框', 'drop.hint.dir': '松开以插入目录树',
+    'add.ws': '添加工作区', 'dir.tree.fail': '目录树生成失败: ',
+    'sel.count': '已选 {n} 项', 'sel.insert': '插入所选', 'sel.clear': '清除',
+    'preview.page': '第 {n} 页', 'preview.lines': '{n} 行', 'preview.prev': '上一页', 'preview.next': '下一页',
     'tab.files': '文件', 'tab.settings': '设置',
     'settings.title': '面板设置', 'settings.general': '通用',
     'settings.hideNoise': '隐藏噪声目录', 'settings.hideNoise.desc': '.git · node_modules · dist 等',
@@ -51,16 +54,19 @@ const DICTS: Record<string, Record<string, string>> = {
   },
   en: {
     'panel.title': 'Workspace Files', 'ws.current': 'Current dir', 'search.ph': 'Search files (loaded dirs only)…',
-    hint: 'Click a file or drag it into the composer to send', 'empty.title': 'No browsable workspace yet. Pick a project folder to view its files.',
+    hint: 'Click / drag to insert; Shift or ⌘ click to select multiple', 'empty.title': 'No browsable workspace yet. Pick a project folder to view its files.',
     'empty.add': '+ Choose a folder as workspace', 'loading.ws': 'Loading workspaces…', hit: '{n} match(es)',
     'hit.none': 'No files match "{q}" (search covers loaded dirs)', truncated: 'Truncated: showing the first {n}',
     loading: 'Loading…', 'load.fail': 'Load failed: ', read: 'Reading…', 'read.fail': 'Read failed: ',
     'too.large': 'File too large ({s}); reference only', binary: 'Binary file; reference only',
-    'lines.tail': '…({n} lines total, showing the first {m})', 'btn.ref': 'Insert reference', 'btn.content': 'Insert content',
+    'btn.ref': 'Insert reference', 'btn.content': 'Insert content',
     'btn.content.tip': 'Insert the file content into the composer', 'btn.content.no': 'Too large or binary — cannot inline',
     'sidebar.tooltip': 'Workspace Files', 'sidebar.label': 'Files', refresh: 'Refresh', close: 'Close',
     'close.preview': 'Close preview', 'row.tip': 'click or drag to the composer', 'preview.tip': 'Preview (P)',
-    'insert.tip': 'Insert reference', 'drop.hint': 'Release to insert the file reference into the composer', 'add.ws': 'Add workspace',
+    'insert.tip': 'Insert reference', 'drop.hint': 'Release to insert the file reference into the composer', 'drop.hint.dir': 'Release to insert the folder tree',
+    'add.ws': 'Add workspace', 'dir.tree.fail': 'Folder tree failed: ',
+    'sel.count': '{n} selected', 'sel.insert': 'Insert', 'sel.clear': 'Clear',
+    'preview.page': 'Page {n}', 'preview.lines': '{n} lines', 'preview.prev': 'Previous page', 'preview.next': 'Next page',
     'tab.files': 'Files', 'tab.settings': 'Settings',
     'settings.title': 'Panel settings', 'settings.general': 'General',
     'settings.hideNoise': 'Hide noise dirs', 'settings.hideNoise.desc': '.git · node_modules · dist …',
@@ -118,9 +124,10 @@ interface WsEntry {
 }
 interface ListResult { ok: boolean; error?: string; path?: string; rel?: string; entries?: WsEntry[]; truncated?: boolean }
 interface PeekResult {
-  ok: boolean; error?: string; tooLarge?: boolean; binary?: boolean; size?: number
-  lineCount?: number; content?: string; truncatedLines?: boolean
+  ok: boolean; error?: string; binary?: boolean; size?: number
+  lineCount?: number | null; startLine?: number; content?: string; hasMore?: boolean
 }
+interface TreeResult { ok: boolean; error?: string; name?: string; entries?: WsEntry[]; entryCount?: number; truncated?: boolean }
 interface ConfigResult { ok: boolean; ignore?: string[]; max?: number; peekMaxLines?: number }
 
 // ---------- 运行期配置(内存级;面板设置 Tab 与 DSH 设置页共享) ----------
@@ -153,6 +160,43 @@ const fmtSize = (n: number | null | undefined): string => {
 }
 const basename = (p: string): string => { const s = p.replace(/\/+$/, ''); const i = s.lastIndexOf('/'); return i >= 0 ? s.slice(i + 1) : s }
 const extOf = (name: string): string => { const i = name.lastIndexOf('.'); return i <= 0 ? '' : name.slice(i + 1).toLowerCase() }
+
+// ---------- 目录树文本(目录拖拽 / 多选批量插入共用) ----------
+interface TreeFormatNode { name: string; type: string; children: TreeFormatNode[] }
+function formatTreeBlock(name: string, entries: Array<{ rel: string; type: string; name: string }>, truncated: boolean): string {
+  const root: TreeFormatNode = { name, type: 'directory', children: [] }
+  const map = new Map<string, TreeFormatNode>([['', root]])
+  for (const e of entries) {
+    const segs = e.rel.split('/')
+    const node: TreeFormatNode = { name: e.name, type: e.type, children: [] }
+    map.set(e.rel, node)
+    const parent = segs.length > 1 ? segs.slice(0, -1).join('/') : ''
+    map.get(parent)?.children.push(node)
+  }
+  const out: string[] = []
+  const walk = (node: TreeFormatNode, prefix: string, isLast: boolean, isRoot: boolean): void => {
+    if (isRoot) {
+      out.push(`${node.name}/`)
+    } else {
+      out.push(`${prefix}${isLast ? '└── ' : '├── '}${node.name}${node.type === 'directory' ? '/' : ''}`)
+      prefix += isLast ? '    ' : '│   '
+    }
+    node.children.forEach((c, i) => walk(c, prefix, i === node.children.length - 1, false))
+  }
+  walk(root, '', true, true)
+  if (truncated) out.push('…')
+  return out.join('\n')
+}
+async function fetchTreeText(path: string, depth = 3): Promise<string | null> {
+  try {
+    const res = await api<TreeResult>('tree', { path, depth })
+    if (!res.ok || !res.entries) { console.warn('ws-tree.tree failed', res.error); return null }
+    return formatTreeBlock(res.name ?? basename(path), res.entries, res.truncated === true)
+  } catch (err) {
+    console.warn('ws-tree.tree failed', String((err as Error)?.message ?? err))
+    return null
+  }
+}
 
 function FolderSvg({ open }: { open: boolean }) {
   return <svg viewBox="0 0 16 16" width={16} height={16} className={C('dshwe-ico dshwe-folder-svg')} aria-hidden="true">
@@ -303,7 +347,7 @@ function SettingsView() {
 function Panel(props: {
   useWorkspaces: (s: unknown) => unknown
   useSessions: (s: unknown) => unknown
-  onDraggingChange: (v: boolean) => void
+  onDraggingChange: (v: 'file' | 'dir' | null) => void
 }) {
   const wsState = props.useWorkspaces((s: unknown) => s) as { items?: Array<{ workspaceId: string; path: string; title: string }>; recentWorkspaceId?: string; state?: string }
   const sessions = props.useSessions((s: unknown) => s) as { current?: string; byId?: Record<string, { cwd?: string }> }
@@ -315,7 +359,9 @@ function Panel(props: {
   const [dirs, setDirs] = useState<Record<string, { loading: boolean; error: string | null; entries: WsEntry[]; truncated: boolean }>>({})
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [filter, setFilter] = useState('')
-  const [preview, setPreview] = useState<{ entry: WsEntry; loading: boolean; data: PeekResult | null; error: string | null } | null>(null)
+  const [preview, setPreview] = useState<{ entry: WsEntry; loading: boolean; data: PeekResult | null; error: string | null; page: number } | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [selAnchor, setSelAnchor] = useState<string | null>(null)
   const [tab, setTab] = useState<'files' | 'settings'>('files')
   const [c, setC] = useState(getCfg())
   useEffect(() => subscribeCfg(setC), [])
@@ -342,7 +388,7 @@ function Panel(props: {
 
   useEffect(() => {
     if (root === null) return
-    setDirs({}); setExpanded({}); setPreview(null)
+    setDirs({}); setExpanded({}); setPreview(null); setSelected(new Set()); setSelAnchor(null)
     void loadDir(root, '')
   }, [root, loadDir])
 
@@ -367,27 +413,37 @@ function Panel(props: {
   const markerFor = (entry: WsEntry): string => (c.refStyle === 'relative' && root === cwd) ? `[file: ${entry.rel}]` : `[file: ${entry.path}]`
   const insertMarker = (entry: WsEntry): void => { const b = getBridge(); if (b) b.insert(markerFor(entry)) }
 
-  const openPreview = async (entry: WsEntry): Promise<void> => {
-    setPreview({ entry, loading: true, data: null, error: null })
+  // 分页预览:按行加载第 page 页(每页 c.peekLines 行)
+  const loadPreviewPage = useCallback(async (entry: WsEntry, page: number): Promise<void> => {
+    setPreview({ entry, loading: true, data: null, error: null, page })
     try {
-      const res = await api<PeekResult>('peek', { path: entry.path })
+      const res = await api<PeekResult>('peek', { path: entry.path, offset: page * c.peekLines, limit: c.peekLines })
       if (!res.ok) throw new Error(res.error ?? 'unknown')
-      setPreview({ entry, loading: false, data: res, error: null })
+      setPreview({ entry, loading: false, data: res, error: null, page })
     } catch (err) {
-      setPreview({ entry, loading: false, data: null, error: String((err as Error)?.message ?? err) })
+      setPreview({ entry, loading: false, data: null, error: String((err as Error)?.message ?? err), page })
     }
-  }
-  const insertContent = (): void => {
-    if (!preview?.data || preview.data.tooLarge || preview.data.binary || (preview.data.size ?? 0) > 32768) return
+  }, [c.peekLines])
+  const openPreview = (entry: WsEntry): void => { void loadPreviewPage(entry, 0) }
+  const previewPrev = (): void => { if (preview && preview.page > 0 && !preview.loading) void loadPreviewPage(preview.entry, preview.page - 1) }
+  const previewNext = (): void => { if (preview && preview.data?.hasMore && !preview.loading) void loadPreviewPage(preview.entry, preview.page + 1) }
+  // 「插入内容」:小文件(≤32KB)整文件取回
+  const insertContent = async (): Promise<void> => {
+    if (!preview || preview.loading || preview.error || !preview.data) return
+    const d = preview.data
+    if (d.binary || (d.size ?? 0) > 32768) return
+    const res = await api<PeekResult>('peek', { path: preview.entry.path, whole: true })
+    if (!res.ok || res.content == null) return
     const b = getBridge()
-    if (b) b.insert(`\n${preview.data.content ?? ''}\n`)
+    if (b) b.insert(`\n${res.content}\n`)
   }
 
+  // 拖拽:文件 → 引用标记;目录 → 目录树文本(落点处异步生成)
   const onDragStart = (ev: React.DragEvent, entry: WsEntry): void => {
-    ev.dataTransfer.setData('text/plain', markerFor(entry))
-    ev.dataTransfer.setData(MARKER, JSON.stringify({ path: entry.path, rel: entry.rel, name: entry.name }))
+    ev.dataTransfer.setData('text/plain', entry.type === 'directory' ? entry.name : markerFor(entry))
+    ev.dataTransfer.setData(MARKER, JSON.stringify({ path: entry.path, rel: entry.rel, name: entry.name, type: entry.type }))
     ev.dataTransfer.effectAllowed = 'copy'
-    props.onDraggingChange(true)
+    props.onDraggingChange(entry.type === 'directory' ? 'dir' : 'file')
   }
 
   const addWorkspace = async (): Promise<void> => {
@@ -395,25 +451,92 @@ function Panel(props: {
   }
 
   const q = filter.trim().toLowerCase()
-  const collectMatches = (rel: string, out: Array<{ entry: WsEntry }>): void => {
+  const collectMatches = (rel: string, out: WsEntry[]): void => {
     const data = dirs[rel]
     if (!data) return
     for (const entry of data.entries) {
-      if (entry.name.toLowerCase().includes(q)) out.push({ entry })
+      if (entry.name.toLowerCase().includes(q)) out.push(entry)
       if (entry.type === 'directory') collectMatches(entry.rel, out)
     }
+  }
+  // 当前可见条目(平铺):搜索模式取匹配,否则按展开树顺序
+  const flatVisible = (): WsEntry[] => {
+    if (q !== '') {
+      const hits: WsEntry[] = []
+      collectMatches('', hits)
+      return hits
+    }
+    const out: WsEntry[] = []
+    const walk = (rel: string): void => {
+      const data = dirs[rel]
+      if (!data) return
+      for (const entry of data.entries) {
+        out.push(entry)
+        if (entry.type === 'directory' && expanded[entry.rel]) walk(entry.rel)
+      }
+    }
+    walk('')
+    return out
+  }
+  // 行点击:Shift 扩展选择区间,⌘/Ctrl 切换选择;普通点击保持原行为(目录展开 / 文件插入引用)
+  const onRowClick = (ev: React.MouseEvent, entry: WsEntry): void => {
+    const isDir = entry.type === 'directory'
+    if (ev.shiftKey || ev.metaKey || ev.ctrlKey) {
+      ev.preventDefault()
+      if (ev.shiftKey && selAnchor !== null) {
+        const list = flatVisible()
+        const a = list.findIndex((e) => e.rel === selAnchor)
+        const b = list.findIndex((e) => e.rel === entry.rel)
+        if (a >= 0 && b >= 0) {
+          const [lo, hi] = a < b ? [a, b] : [b, a]
+          const range = list.slice(lo, hi + 1).map((e) => e.rel)
+          setSelected((prev) => new Set([...prev, ...range]))
+        }
+      } else {
+        setSelected((prev) => {
+          const n = new Set(prev)
+          if (n.has(entry.rel)) n.delete(entry.rel); else n.add(entry.rel)
+          return n
+        })
+      }
+      setSelAnchor(entry.rel)
+    } else if (isDir) {
+      toggle(entry.rel)
+    } else {
+      insertMarker(entry)
+    }
+  }
+  // 批量插入所选:文件 → 引用;目录 → 目录树文本
+  const insertSelected = async (): Promise<void> => {
+    const b = getBridge()
+    if (!b) return
+    const rels = new Set(selected)
+    const list = flatVisible().filter((e) => rels.has(e.rel))
+    const parts: string[] = []
+    for (const e of list) {
+      if (e.type === 'directory') {
+        const text = await fetchTreeText(e.path)
+        if (text) parts.push(text)
+      } else {
+        parts.push(markerFor(e))
+      }
+    }
+    if (parts.length > 0) b.insert(parts.join('\n'))
+    setSelected(new Set())
+    setSelAnchor(null)
   }
 
   const rowFor = (entry: WsEntry, depth: number, isExp: boolean): React.ReactNode => {
     const isDir = entry.type === 'directory'
+    const isSel = selected.has(entry.rel)
     return (
       <button key={entry.rel} type="button"
-        className={C('dshwe-row') + (isDir ? ` ${C('dshwe-row-dir')}` : ` ${C('dshwe-row-file')}`)}
+        className={C('dshwe-row') + (isDir ? ` ${C('dshwe-row-dir')}` : ` ${C('dshwe-row-file')}`) + (isSel ? ` ${C('dshwe-row-sel')}` : '')}
         style={{ paddingLeft: 10 + depth * 16 }}
         title={entry.path + (isDir ? '' : ` · ${tr('row.tip')}`)}
-        draggable={!isDir}
-        onDragStart={isDir ? undefined : (ev) => onDragStart(ev, entry)}
-        onClick={() => { if (isDir) toggle(entry.rel); else insertMarker(entry) }}
+        draggable
+        onDragStart={(ev) => onDragStart(ev, entry)}
+        onClick={(ev) => onRowClick(ev, entry)}
         onKeyDown={(ev) => {
           if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); if (isDir) toggle(entry.rel); else insertMarker(entry) }
           else if (ev.key === 'p' && !isDir) { ev.preventDefault(); void openPreview(entry) }
@@ -456,12 +579,12 @@ function Panel(props: {
 
   let body: React.ReactNode
   if (q !== '') {
-    const hits: Array<{ entry: WsEntry }> = []
+    const hits: WsEntry[] = []
     collectMatches('', hits)
     body = (
       <>
         <div className={C('dshwe-note')}>{tr('hit', { n: hits.length })}</div>
-        {hits.length ? hits.map((h) => rowFor(h.entry, 0, false)) : <div className={C('dshwe-empty')}>{tr('hit.none', { q: filter })}</div>}
+        {hits.length ? hits.map((h) => rowFor(h, 0, false)) : <div className={C('dshwe-empty')}>{tr('hit.none', { q: filter })}</div>}
       </>
     )
   } else if (root === null) {
@@ -490,15 +613,20 @@ function Panel(props: {
     let contentArea: React.ReactNode
     if (preview.loading) contentArea = <div className={C('dshwe-note')}><span className={C('dshwe-spin')} />{tr('read')}</div>
     else if (preview.error) contentArea = <div className={C('dshwe-note dshwe-note-err')}>{tr('read.fail')}{preview.error}</div>
-    else if (d?.tooLarge) contentArea = <div className={C('dshwe-note')}>{tr('too.large', { s: fmtSize(d.size) })}</div>
     else if (d?.binary) contentArea = <div className={C('dshwe-note')}>{tr('binary')}</div>
-    else contentArea = <pre className={C('dshwe-preview-pre')}>{d?.content}{d?.truncatedLines ? `\n${tr('lines.tail', { n: d.lineCount ?? 0, m: c.peekLines })}` : ''}</pre>
-    const canInline = !preview.loading && !preview.error && !!d && !d.tooLarge && !d.binary && (d.size ?? 0) <= 32768
+    else contentArea = <pre className={C('dshwe-preview-pre')}>{d?.content ?? ''}</pre>
+    const canInline = !preview.loading && !preview.error && !!d && !d.binary && (d.size ?? 0) <= 32768
+    const metaBits: string[] = []
+    if (preview.entry.size != null) metaBits.push(fmtSize(preview.entry.size))
+    if (d?.lineCount != null && d.lineCount > 0) metaBits.push(tr('preview.lines', { n: d.lineCount }))
+    if (preview.page > 0 || d?.hasMore === true) metaBits.push(tr('preview.page', { n: preview.page + 1 }))
     pv = (
       <div className={C('dshwe-preview')}>
         <div className={C('dshwe-preview-head')}>
           <div className={C('dshwe-preview-name')}>{preview.entry.name}</div>
-          <div className={C('dshwe-preview-meta')}>{preview.entry.size != null ? fmtSize(preview.entry.size) : ''}</div>
+          <div className={C('dshwe-preview-meta')}>{metaBits.join(' · ')}</div>
+          <button type="button" className={C('dshwe-pager-btn')} disabled={preview.page === 0 || preview.loading} onClick={previewPrev} title={tr('preview.prev')} aria-label={tr('preview.prev')}>‹</button>
+          <button type="button" className={C('dshwe-pager-btn')} disabled={d?.hasMore !== true || preview.loading} onClick={previewNext} title={tr('preview.next')} aria-label={tr('preview.next')}>›</button>
           <button type="button" className={C('dshwe-icobtn')} onClick={() => setPreview(null)} title={tr('close.preview')} aria-label={tr('close.preview')}>
             <svg viewBox="0 0 16 16" width={13} height={13} aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" /></svg>
           </button>
@@ -507,7 +635,7 @@ function Panel(props: {
         <div className={C('dshwe-preview-actions')}>
           <button type="button" className={C('dshwe-prevbtn')} onClick={() => insertMarker(preview.entry)}>{tr('btn.ref')}</button>
           <button type="button" className={C('dshwe-prevbtn dshwe-prevbtn-primary')} disabled={!canInline}
-            title={canInline ? tr('btn.content.tip') : tr('btn.content.no')} onClick={insertContent}>{tr('btn.content')}</button>
+            title={canInline ? tr('btn.content.tip') : tr('btn.content.no')} onClick={() => void insertContent()}>{tr('btn.content')}</button>
         </div>
       </div>
     )
@@ -531,6 +659,13 @@ function Panel(props: {
       </div>
       <div className={C('dshwe-hintline')}><span>↩</span>{tr('hint')}</div>
       <div className={C('dshwe-tree')}>{body}</div>
+      {selected.size > 0 ? (
+        <div className={C('dshwe-selbar')}>
+          <span className={C('dshwe-selbar-count')}>{tr('sel.count', { n: selected.size })}</span>
+          <button type="button" className={C('dshwe-prevbtn')} onClick={() => void insertSelected()}>{tr('sel.insert')}</button>
+          <button type="button" className={C('dshwe-prevbtn')} onClick={() => { setSelected(new Set()); setSelAnchor(null) }}>{tr('sel.clear')}</button>
+        </div>
+      ) : null}
       {pv}
     </>
   )
@@ -574,7 +709,7 @@ function DrawerRoot(props: {
   const [on, setOn] = useState(getOpen())
   const [shown, setShown] = useState(false)
   const [rect, setRect] = useState({ top: 48, height: 480 })
-  const [dragging, setDragging] = useState(false)
+  const [dragKind, setDragKind] = useState<'file' | 'dir' | null>(null)
   useEffect(() => subscribeOpen(setOn), [])
   // 打开时先挂载再置 shown,触发 CSS 过渡动画
   useEffect(() => {
@@ -599,16 +734,33 @@ function DrawerRoot(props: {
   }, [])
   useEffect(() => {
     const hasMarker = (e: DragEvent): boolean => !!e.dataTransfer && Array.from(e.dataTransfer.types ?? []).includes(MARKER)
+    const readPayload = (e: DragEvent): { path?: string; rel?: string; name?: string; type?: string } | null => {
+      const raw = e.dataTransfer?.getData(MARKER) ?? ''
+      try { return raw ? JSON.parse(raw) as { path?: string; rel?: string; name?: string; type?: string } : null } catch { return null }
+    }
     const onDragOver = (e: DragEvent): void => { if (!hasMarker(e)) return; e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy' }
     const onDrop = (e: DragEvent): void => {
       if (!hasMarker(e)) return
-      const markerText = e.dataTransfer?.getData('text/plain') ?? ''
+      const payload = readPayload(e)
       const target = e.target instanceof HTMLElement ? e.target : null
-      if (target?.closest('[data-composer-card] textarea')) { setDragging(false); return }
-      e.preventDefault(); e.stopPropagation(); setDragging(false)
+      const inComposer = !!target?.closest('[data-composer-card] textarea')
+      // 目录:任意落点都生成目录树文本后插入(输入框内也会拦截,保证插入的是树而非目录名)
+      if (payload?.type === 'directory') {
+        e.preventDefault(); e.stopPropagation(); setDragKind(null)
+        void (async () => {
+          if (!payload.path) return
+          const text = await fetchTreeText(payload.path)
+          if (text) getBridge()?.insert(text)
+        })()
+        return
+      }
+      // 文件:输入框内交给原生光标插入,其他位置追加引用
+      if (inComposer) { setDragKind(null); return }
+      e.preventDefault(); e.stopPropagation(); setDragKind(null)
+      const markerText = e.dataTransfer?.getData('text/plain') ?? ''
       if (markerText !== '') getBridge()?.insert(markerText)
     }
-    const onDragEnd = (): void => setDragging(false)
+    const onDragEnd = (): void => setDragKind(null)
     document.addEventListener('dragover', onDragOver, true)
     document.addEventListener('drop', onDrop, true)
     document.addEventListener('dragend', onDragEnd)
@@ -620,8 +772,8 @@ function DrawerRoot(props: {
   }, [])
   return (
     <div className={C('dshwe-layer')}>
-      {dragging ? <div className={C('dshwe-hint')}><div className={C('dshwe-hint-chip')}><svg viewBox="0 0 16 16" width={16} height={16} aria-hidden="true"><path d="M8 3.5v6M5.7 7.2L8 9.5l2.3-2.3M3.5 12.5h9" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" /></svg>{tr('drop.hint')}</div></div> : null}
-      {on ? <div className={C('dshwe-popup') + (shown ? ` ${C('dshwe-popup-on')}` : '')} style={{ top: rect.top, height: rect.height }}><Panel {...props} onDraggingChange={setDragging} /></div> : null}
+      {dragKind !== null ? <div className={C('dshwe-hint')}><div className={C('dshwe-hint-chip')}><svg viewBox="0 0 16 16" width={16} height={16} aria-hidden="true"><path d="M8 3.5v6M5.7 7.2L8 9.5l2.3-2.3M3.5 12.5h9" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" /></svg>{dragKind === 'dir' ? tr('drop.hint.dir') : tr('drop.hint')}</div></div> : null}
+      {on ? <div className={C('dshwe-popup') + (shown ? ` ${C('dshwe-popup-on')}` : '')} style={{ top: rect.top, height: rect.height }}><Panel {...props} onDraggingChange={setDragKind} /></div> : null}
     </div>
   )
 }
