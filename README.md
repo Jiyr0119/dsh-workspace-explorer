@@ -8,13 +8,15 @@
 [![Awesome DSH Plugin](https://awesome-dsh-plugin.com/badge.svg)](https://awesome-dsh-plugin.com)
 [![Last commit](https://img.shields.io/github/last-commit/Jiyr0119/dsh-workspace-explorer)](https://github.com/Jiyr0119/dsh-workspace-explorer)
 
-> A workspace file explorer for the DeepSeek Harness Web UI: a **file-tree button in the session header** opens an animated popup showing the current workspace's directory tree — click or drag a file to send its reference to the model.
+> A workspace file explorer for the DeepSeek Harness Web UI: a **“Workspace Files” capsule button in the session header** (feature name + folder icon, beside the Session log button) opens an animated popup showing the current workspace's directory tree — click or drag a file to send its reference to the model.
 
 Inspired by the VS Code / Cursor project tree, filling the gap of a missing directory view in DSH after workspaces are added.
 
 ## 🖥 Demo
 
 ![dsh-workspace-explorer demo](demo/preview.gif)
+
+*Demo GIF (v0.5.1): the **“Workspace Files” pill entry**, multi-select batch insert, folder drag → compact tree text, paginated preview, and the settings tab.*
 
 <details>
 <summary><b>Screenshots</b> · 截图</summary>
@@ -29,7 +31,7 @@ Inspired by the VS Code / Cursor project tree, filling the gap of a missing dire
 
 ## Features
 
-- 📂 **Animated popup** — a **file-tree icon** in the session header (beside the session log button) opens a floating panel with a spring-like fade/scale-in animation; the popup is measured live to sit **between the session header and the composer** (the chat area's right side), so it never covers the input box
+- 📂 **Animated popup** — a **“Workspace Files” capsule button** (feature name + folder icon, same style as the native **Session log** download button) sits in the session header and opens a floating panel with a spring-like fade/scale-in animation; the popup is measured live to sit **between the session header and the composer** (the chat area's right side), so it never covers the input box
 - 🗂 **Top tab bar** — click at the top of the panel to switch between Files and Settings; the Settings page tunes behavior live (hide noise dirs, show sizes, reference format, preview lines, panel width) and mirrors into DSH Settings → Workspace Explorer
 - 🗂 **Lazy-loading tree** — directories load on demand; noise dirs (`node_modules`, `.git`, `dist`, `__pycache__`, …) are hidden automatically
 - 🎨 **File-type icons** — filled, color-coded document badges per extension (TS / JS / Python / JSON / Markdown / image / config / shell, …); amber folders that brighten when expanded
@@ -52,7 +54,7 @@ One command installs the full plugin — no build step, no config changes. The n
 dsh plugin --profile web add -w @jiyr0119/dsh-workspace-explorer@latest
 ```
 
-(or click the install button in the DSH market). After install, a **file-tree icon** appears in the session header; restart or hard-refresh the web UI if needed. This is the zero-config, no-build path.
+(or click the install button in the DSH market). After install, a **“Workspace Files” pill (name + icon)** appears in the session header; restart or hard-refresh the web UI if needed. This is the zero-config, no-build path.
 
 **Way 2 · npm source package (manual paste)**
 `npm install @jiyr0119/dsh-workspace-explorer` — the package ships `dynamic/host.js` / `dynamic/client.js` for the manual paste flow below, with semver releases.
@@ -64,7 +66,7 @@ A *dynamic Cordis plugin*: no build step, no config changes — useful for quick
 2. Paste the whole [`dynamic/host.js`](./dynamic/host.js) into **Host code**.
 3. Paste the whole [`dynamic/client.js`](./dynamic/client.js) into **Client code**.
 4. `cordis_run` to activate; authorize on the Run card when it first appears.
-5. Click the 🌲 **file-tree icon** in the session header → expand directories → click a file, or drag it into the composer, then send.
+5. Click the **“Workspace Files” pill** (name + folder icon) in the session header → expand directories → click a file, or drag it into the composer, then send.
 
 > ℹ️ **pnpm note**: modern pnpm (9/10) refuses to add a dependency at the workspace root (`ERR_PNPM_ADDING_TO_ROOT`), hence the `-w` flag above. Alternative: create `~/.dsh/profiles/web/.npmrc` containing `ignore-workspace-root-check=true`.
 
@@ -74,7 +76,7 @@ See [`docs/install.md`](./docs/install.md) for details.
 
 ### Usage
 
-1. Click the 🌲 **file-tree icon** at the top of the session header (right side, beside the session log button) to open the popup.
+1. Click the **“Workspace Files” pill** (feature name + folder icon) at the top right of the session header, beside the Session log button, to open the popup.
 2. Expand directories to browse files.
 3. Click a file, or drag it into the composer, then send.
 4. Use the **Settings** tab at the top of the popup (or DSH Settings → Workspace Explorer) to adjust panel behavior.
@@ -116,14 +118,14 @@ dsh-workspace-explorer/
 | Directory listing | Host `fs.resolve` / `fs.listDir` |
 | Host→Client RPC | `harness.handle('ws-tree.list' / 'ws-tree.peek')` ↔ `host.call(...)` |
 | Popup | `shell.overlay` slot (`useWorkspaces` / `useSessions`), position measured between session header & composer |
-| Toggle button | `conversation.session.header.utilities` slot (file-tree icon) |
+| Toggle button | `conversation.session.header.utilities` slot (“Workspace Files” pill: name + icon) |
 | Composer write | `conversation.input.dock` → `inputActions.setDraft` |
 | Drag & drop | HTML5 DnD; native caret insert in the textarea, append elsewhere |
 | Theming | `--dsw-alias-*` CSS variables (light/dark) |
 
 ## Version
 
-Current version **v0.5.0** — animated popup opened from a session-header file-tree icon, positioned between the header and the composer; full feature set (tree, search, multi-select batch insert, folder drag & drop, paginated preview, click/drag references, settings, i18n).
+Current version **v0.5.1** — the session-header entry is now a **“Workspace Files” capsule (feature name + folder icon)**, matching the native Session log button style; the demo GIF was re-recorded to show the entry plus the M1 read-path features (multi-select batch insert, folder drag & tree text, paginated preview, settings tab).
 See [CHANGELOG.md](./CHANGELOG.md) for release notes.
 
 ## Roadmap

@@ -8,13 +8,15 @@
 [![Awesome DSH Plugin](https://awesome-dsh-plugin.com/badge.svg)](https://awesome-dsh-plugin.com)
 [![Last commit](https://img.shields.io/github/last-commit/Jiyr0119/dsh-workspace-explorer)](https://github.com/Jiyr0119/dsh-workspace-explorer)
 
-> 给 DeepSeek Harness Web UI 的工作区文件资源管理器:会话头部一个**文件树图标**打开动画弹窗,展示当前工作区目录树;点击或拖拽文件即可把文件引用发给大模型。
+> 给 DeepSeek Harness Web UI 的工作区文件资源管理器:会话头部一个**「工作区文件」胶囊按钮**(功能名称 + 文件夹图标,与 Session log 按钮同排)打开动画弹窗,展示当前工作区目录树;点击或拖拽文件即可把文件引用发给大模型。
 
 灵感来自 VS Code / Cursor 的项目目录树,弥补 DSH 添加工作台后没有目录视图的空白。
 
 ## 🖥 演示 Demo
 
 ![dsh-workspace-explorer 演示](demo/preview.gif)
+
+*演示 GIF(v0.5.1):「工作区文件」胶囊入口、多选批量插入、目录拖拽 → 紧凑目录树文本、分页预览与设置页。*
 
 <details>
 <summary><b>截图</b> Screenshots</summary>
@@ -29,7 +31,7 @@
 
 ## 功能特性
 
-- 📂 **动画弹窗** — 会话头部右侧(与 session log 同排)的**文件树图标**点击后,弹出一个带淡入/缩放动画的浮动面板;弹窗位置实时测量,**位于会话头部与输入框之间**(聊天区右侧),绝不会盖住输入框
+- 📂 **动画弹窗** — 会话头部右侧(与 session log 同排)的**「工作区文件」胶囊按钮**(功能名称 + 文件夹图标,与 DSH 原生 **Session log** 下载按钮同款样式)点击后,弹出一个带淡入/缩放动画的浮动面板;弹窗位置实时测量,**位于会话头部与输入框之间**(聊天区右侧),绝不会盖住输入框
 - 🗂 **顶部 Tab 栏** — 弹窗顶部点击「文件 / 设置」切换页面;设置页实时调节行为(隐藏噪声目录、显示大小、引用格式、预览行数、面板宽度),并同步进 DSH 设置 → 工作区文件
 - 🗂 **懒加载展开** — 目录按需加载,自动隐藏 `node_modules` / `.git` / `dist` / `__pycache__` 等噪声目录
 - 🎨 **文件类型图标** — 按扩展名着色的实心文档徽标(TS / JS / Python / JSON / Markdown / 图片 / 配置 / 脚本等),目录为琥珀色文件夹、展开态高亮
@@ -52,7 +54,7 @@
 dsh plugin --profile web add -w @jiyr0119/dsh-workspace-explorer@latest
 ```
 
-(或在 DSH 市场点击安装按钮)。安装后会话头部即出现**文件树图标**;必要时重启或硬刷新 Web UI。这是零配置、免构建的路径。
+(或在 DSH 市场点击安装按钮)。安装后会话头部即出现**「工作区文件」胶囊(名称 + 图标)**;必要时重启或硬刷新 Web UI。这是零配置、免构建的路径。
 
 **方式二 · npm 源码包(手动粘贴)**
 `npm install @jiyr0119/dsh-workspace-explorer` — 内含 `dynamic/host.js` / `dynamic/client.js`,按方式三粘贴即可,版本随 semver 发布。
@@ -64,7 +66,7 @@ dsh plugin --profile web add -w @jiyr0119/dsh-workspace-explorer@latest
 2. 将 [`dynamic/host.js`](./dynamic/host.js) 全文粘贴到 **Host 代码**
 3. 将 [`dynamic/client.js`](./dynamic/client.js) 全文粘贴到 **Client 代码**
 4. `cordis_run` 激活,首次出现 Run 卡时点击授权
-5. 点击会话头部 🌲「文件树」图标 → 展开目录 → 点击文件,或拖进输入框,然后发送
+5. 点击会话头部**「工作区文件」胶囊**(名称 + 文件夹图标)→ 展开目录 → 点击文件,或拖进输入框,然后发送
 
 > ℹ️ **pnpm 提示**:现代 pnpm(9/10)会拒绝在 workspace root 直接 add(`ERR_PNPM_ADDING_TO_ROOT`),故命令带 `-w`。另一种做法:在 `~/.dsh/profiles/web/.npmrc` 写入 `ignore-workspace-root-check=true`。
 
@@ -74,7 +76,7 @@ dsh plugin --profile web add -w @jiyr0119/dsh-workspace-explorer@latest
 
 ### 使用
 
-1. 点击会话头部右侧的 🌲「文件树」图标(与 session log 按钮同排)打开弹窗
+1. 点击会话头部右上角的**「工作区文件」胶囊按钮**(功能名称 + 文件夹图标,与 Session log 按钮同排)打开弹窗
 2. 展开目录浏览文件
 3. 点击文件,或把它拖进聊天输入框,然后发送
 4. 用弹窗顶部的「设置」Tab(或 DSH 设置 → 工作区文件)调整面板行为
@@ -111,14 +113,14 @@ dsh-workspace-explorer/
 | 目录读取 | Host `fs.resolve` / `fs.listDir` |
 | Host→Client 通信 | `harness.handle('ws-tree.list' / 'ws-tree.peek')` ↔ `host.call(...)` |
 | 弹窗 | `shell.overlay` 槽位(`useWorkspaces` / `useSessions`),位置在会话头部与输入框之间实时测量 |
-| 开关按钮 | `conversation.session.header.utilities` 槽位(文件树图标) |
+| 开关按钮 | `conversation.session.header.utilities` 槽位(「工作区文件」胶囊:名称 + 图标) |
 | 写入输入框 | `conversation.input.dock` → `inputActions.setDraft` |
 | 拖拽插入 | HTML5 DnD;输入框内走原生光标插入,其他位置追加 |
 | 主题适配 | `--dsw-alias-*` CSS 变量(浅/深色自动) |
 
 ## 版本
 
-当前版本 **v0.5.0** — 会话头部文件树图标打开动画弹窗,位于头部与输入框之间;完整功能(目录树、搜索、多选批量插入、目录拖拽、分页预览、点击/拖拽引用、设置、国际化)。
+当前版本 **v0.5.1** — 会话头部入口升级为**「工作区文件」胶囊(功能名称 + 文件夹图标)**,与 DSH 原生 Session log 按钮同款样式;演示 GIF 已重录,展示新入口与 M1 读路径特性(多选批量插入、目录拖拽生成目录树、分页预览、设置页)。
 变更记录见 [CHANGELOG.md](./CHANGELOG.md)。
 
 ## Roadmap

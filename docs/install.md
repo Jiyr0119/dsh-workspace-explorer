@@ -12,7 +12,7 @@
 
 ## 方式一:原生安装(推荐,即装即用)
 
-npm 包同时提供原生 Host 半区(`lib/index.js`,webServer JSON 路由 `/dsh-we/api/list|peek|config`)和浏览器 bundle(`lib/client.js` 经 `dsh.plugin.json`),一条命令装好后会话头部即出现文件树图标,无需任何构建或配置:
+npm 包同时提供原生 Host 半区(`lib/index.js`,webServer JSON 路由 `/dsh-we/api/list|peek|config`)和浏览器 bundle(`lib/client.js` 经 `dsh.plugin.json`),一条命令装好后会话头部即出现「工作区文件」胶囊按钮(功能名称 + 文件夹图标,与 Session log 按钮同排),无需任何构建或配置:
 
 ```bash
 dsh plugin --profile web add -w @jiyr0119/dsh-workspace-explorer@latest

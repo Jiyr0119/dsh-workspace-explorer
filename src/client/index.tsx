@@ -50,7 +50,7 @@ const DICTS: Record<string, Record<string, string>> = {
     'settings.restore': '恢复默认', 'settings.note': '配置在本次会话内生效,重启插件后恢复默认。',
     'settings.nav': '工作区文件',
     'resize.tip': '拖动调整宽度',
-    'drawer.tip': '文件目录', 'drawer.open': '打开文件抽屉', 
+    'drawer.tip': '文件目录', 'drawer.open': '打开文件抽屉', 'drawer.label': '工作区文件',
   },
   en: {
     'panel.title': 'Workspace Files', 'ws.current': 'Current dir', 'search.ph': 'Search files (loaded dirs only)…',
@@ -77,7 +77,7 @@ const DICTS: Record<string, Record<string, string>> = {
     'settings.restore': 'Reset to defaults', 'settings.note': 'Settings apply for this run; they reset when the plugin restarts.',
     'settings.nav': 'Workspace Explorer',
     'resize.tip': 'Drag to resize',
-    'drawer.tip': 'Files', 'drawer.open': 'Open files drawer', 
+    'drawer.tip': 'Files', 'drawer.open': 'Open files drawer', 'drawer.label': 'Workspace Files',
   },
 }
 
@@ -253,12 +253,15 @@ let bridge: { insert(text: string): void } | null = null
 const setBridge = (b: { insert(text: string): void } | null): void => { bridge = b }
 const getBridge = () => bridge
 
-// ---------- 会话头部工具区按钮(与 session log 同排) ----------
+// ---------- 会话头部工具区按钮(与 session log 同排:功能名称 + 图标胶囊) ----------
 function HeaderAction() {
+  const [on, setOn] = useState(getOpen())
+  useEffect(() => subscribeOpen(setOn), [])
   return (
-    <button type="button" className={C('dshwe-hicon')}
-      onClick={toggleDrawer} title={tr('drawer.open')} aria-label={tr('drawer.open')}>
-      <svg viewBox="0 0 16 16" width={16} height={16} aria-hidden="true">
+    <button type="button" className={C('dshwe-hicon') + (on ? ` ${C('dshwe-hicon-on')}` : '')}
+      onClick={toggleDrawer} title={tr('drawer.tip')} aria-label={tr('drawer.open')}>
+      <span>{tr('drawer.label')}</span>
+      <svg viewBox="0 0 16 16" width={13} height={13} aria-hidden="true">
         <path d={FOLDER_D} fill="currentColor" />
       </svg>
     </button>

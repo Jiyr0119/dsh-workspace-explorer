@@ -77,6 +77,7 @@ return {
         'resize.tip': '拖动调整宽度',
         'drawer.tip': '文件目录',
         'drawer.open': '打开文件浏览',
+        'drawer.label': '工作区文件',
       },
       en: {
         'panel.title': 'Workspace Files',
@@ -139,6 +140,7 @@ return {
         'resize.tip': 'Drag to resize',
         'drawer.tip': 'Files',
         'drawer.open': 'Open file explorer',
+        'drawer.label': 'Workspace Files',
       },
     }
     let tr = (k, vars) => { let s = DICTS.zh[k] || k; if (vars) for (const key in vars) s = s.split('{' + key + '}').join(String(vars[key])); return s }
@@ -191,13 +193,28 @@ return {
   border: 0; border-left: 0; border-radius: 0; box-shadow: none;
   pointer-events: auto;
 }
+/* 会话头部入口:功能名称 + 图标胶囊(对标 DSH 原生 session log 下载按钮) */
 .dshwe-hicon {
-  border: 0; background: transparent; color: var(--dsw-alias-label-secondary, #9a9a9a);
-  width: 30px; height: 30px; border-radius: 8px; cursor: pointer;
-  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  border: 1px solid var(--dsw-alias-border-l2, rgba(128,128,128,.35));
+  height: 32px;
+  color: var(--dsw-alias-label-primary, #e8e8e8);
+  cursor: pointer;
+  background: transparent;
+  border-radius: 18px;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 20px;
+  display: inline-flex;
+  flex: none;
 }
-.dshwe-hicon:hover { background: var(--dsw-alias-interactive-bg-hover, rgba(128,128,128,.12)); color: var(--dsw-alias-label-primary, #e8e8e8); }
-.dshwe-hicon-on { color: var(--dsw-alias-state-business-primary, #4176e6); }
+.dshwe-hicon span, .dshwe-hicon svg { flex: none; }
+.dshwe-hicon span { white-space: nowrap; }
+.dshwe-hicon:hover { background: var(--dsw-alias-interactive-bg-hover, rgba(128,128,128,.12)); }
+.dshwe-hicon-on { color: var(--dsw-alias-state-business-primary, #4176e6); border-color: rgba(65,118,230,.5); }
 .dshwe-panel {
   position: fixed; top: 0; right: 0; bottom: auto;
   width: 384px; height: calc(100dvh - 96px); min-height: 320px;
@@ -526,16 +543,19 @@ return {
     const dropSvg = el('svg', { viewBox: '0 0 16 16', width: 16, height: 16, 'aria-hidden': true },
       el('path', { d: 'M8 3.5v6M5.7 7.2L8 9.5l2.3-2.3M3.5 12.5h9', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round' }))
 
-    // ---- 会话头部工具区按钮(与 session log 同排) ----
+    // ---- 会话头部工具区按钮(与 session log 同排:功能名称 + 图标胶囊) ----
     function HeaderAction(props) {
+      const [on, setOn] = React.useState(getOpen())
+      React.useEffect(() => subscribeOpen(setOn), [])
       return el('button', {
         type: 'button',
-        className: 'dshwe-hicon',
+        className: 'dshwe-hicon' + (on ? ' dshwe-hicon-on' : ''),
         onClick: toggleDrawer,
-        title: tr('drawer.open'),
+        title: tr('drawer.tip'),
         'aria-label': tr('drawer.open'),
       },
-        el('svg', { viewBox: '0 0 16 16', width: 16, height: 16, 'aria-hidden': true },
+        el('span', null, tr('drawer.label')),
+        el('svg', { viewBox: '0 0 16 16', width: 13, height: 13, 'aria-hidden': true },
           el('path', { d: FOLDER_D, fill: 'currentColor' })))
     }
 

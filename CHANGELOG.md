@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.5.1] - 2026-08-17
+
+### 入口升级 Entry pill
+
+- **会话头部入口改为「功能名称 + 图标」胶囊**,与 DSH 原生 **Session log 下载按钮**同款样式(描边圆角胶囊、名称在左、文件夹图标在右,高亮主题色):会话头部入口从纯图标按钮升级为「工作区文件 / Workspace Files」胶囊,打开面板时胶囊呈激活态 / The session-header entry is now a **feature-name + icon capsule** matching the native **Session log** download button (bordered pill, label left, folder icon right, business-primary active state): the entry reads "工作区文件 / Workspace Files" and lights up while the panel is open.
+- 原生包(`src/client/index.tsx` + `lib/client.js`)与动态粘贴版(`dynamic/client.js`)同步更新;新增 `drawer.label` 词典键(zh/en) / Both the native bundle and the dynamic paste-in client were updated in sync; a new `drawer.label` locale key (zh/en) drives the button text.
+- 演示页与 GIF 重录:`demo/index.html` 重构为与当前产品一致的模拟(会话头部胶囊入口 + Tab 栏 + 多选操作条 + 目录拖拽目录树 + 分页预览 + 设置页),`demo/preview.gif` 重新录制展示新入口与 M1 特性 / The interactive demo and GIF were rebuilt: `demo/index.html` now mirrors the current product (header pill entry, tabs, selection bar, folder-drag tree text, paginated preview, settings), and `demo/preview.gif` was re-recorded to show the new entry and the M1 read-path features.
+
 ## [v0.5.0] - 2026-08-17
 
 ### 里程碑 M1 — 读路径体验 Read-path UX

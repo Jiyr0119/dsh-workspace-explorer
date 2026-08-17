@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>dsh-workspace-explorer · Interactive Demo</title>
-<meta name="description" content="Interactive mock preview of the dsh-workspace-explorer plugin for DeepSeek Harness: workspace file tree panel with click / drag-to-composer file references." />
+<meta name="description" content="Interactive mock preview of the dsh-workspace-explorer plugin for DeepSeek Harness: session-header entry, workspace file tree panel with click / drag / multi-select references, folder tree insertion and paginated preview." />
 <style>
   * { box-sizing: border-box; }
   html, body { height: 100%; }
@@ -14,7 +14,7 @@
     color: #e8e8e8;
     background: radial-gradient(1200px 600px at 20% -10%, #1c2430 0%, #0d1117 55%, #080b0f 100%);
     display: flex; flex-direction: column; align-items: center;
-    padding: 28px 16px 40px;
+    padding: 24px 16px 40px;
   }
 
   /* ---- demo 说明条 ---- */
@@ -24,7 +24,7 @@
     border: 1px solid rgba(255,255,255,.08);
     border-radius: 12px;
     padding: 10px 16px;
-    margin-bottom: 16px;
+    margin-bottom: 14px;
     font-size: 12.5px;
     color: #aeb6c2;
     display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center;
@@ -48,8 +48,8 @@
   .demo-stage {
     position: relative;
     width: min(960px, 100%);
-    height: min(600px, calc(100dvh - 150px));
-    min-height: 420px;
+    height: min(620px, calc(100dvh - 130px));
+    min-height: 440px;
     background: #15171a;
     border: 1px solid rgba(255,255,255,.09);
     border-radius: 18px;
@@ -57,31 +57,79 @@
     box-shadow: 0 24px 70px rgba(0,0,0,.55);
   }
 
-  /* 左侧:假聊天区 */
-  .demo-chat { position: absolute; inset: 0; display: flex; flex-direction: column; transition: padding-right .25s ease; }
-  /* 面板打开时,聊天区右侧让出面板宽度,避免发送按钮被遮挡 */
-  .demo-stage.panel-open .demo-chat { padding-right: 404px; }
-  .demo-chat-head {
-    flex: none; padding: 12px 16px; font-size: 13px; font-weight: 600; color: #cfd6e0;
+  /* ---- 会话头部(面包屑 + 工具区) ---- */
+  .demo-header {
+    position: absolute; top: 0; left: 0; right: 0; z-index: 5;
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 16px;
     border-bottom: 1px solid rgba(255,255,255,.07);
-    display: flex; align-items: center; gap: 8px;
+    background: rgba(21,23,26,.92);
   }
-  .demo-chat-head .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
+  .demo-header-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+  .demo-header-left .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; flex: none; }
+  .demo-crumbs { display: flex; align-items: center; gap: 4px; font-size: 12.5px; min-width: 0; overflow: hidden; }
+  .demo-crumbs .crumb { color: #9aa3b0; background: transparent; border: 0; padding: 2px 4px; border-radius: 6px; font: inherit; }
+  .demo-crumbs .crumb-sep { color: #565e69; }
+  .demo-crumbs .crumb-current { color: #e8e8e8; font-weight: 600; }
+  .demo-header-utils { display: flex; align-items: center; gap: 8px; flex: none; }
+
+  /* Session log 胶囊(DSH 原生) */
+  .demo-sessionlog {
+    border: 1px solid rgba(255,255,255,.16);
+    min-width: 96px; height: 32px;
+    color: #e8e8e8; font-family: inherit; cursor: default;
+    background: transparent; border-radius: 18px;
+    justify-content: center; align-items: center; gap: 4px;
+    padding: 6px 12px; font-size: 13px; font-weight: 400; line-height: 20px;
+    display: inline-flex; flex: none; opacity: .85;
+  }
+  .demo-sessionlog span, .demo-sessionlog svg { flex: none; }
+  .demo-sessionlog span { white-space: nowrap; }
+  .demo-sessionlog:hover { background: rgba(255,255,255,.07); }
+
+  /* 插件入口胶囊:功能名称 + 图标(与真实插件一致) */
+  .demo-stage .dshwe-hicon {
+    border: 1px solid rgba(255,255,255,.16);
+    height: 32px;
+    color: #e8e8e8;
+    cursor: pointer;
+    background: transparent;
+    border-radius: 18px;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 20px;
+    display: inline-flex;
+    flex: none;
+  }
+  .demo-stage .dshwe-hicon span, .demo-stage .dshwe-hicon svg { flex: none; }
+  .demo-stage .dshwe-hicon span { white-space: nowrap; }
+  .demo-stage .dshwe-hicon:hover { background: rgba(255,255,255,.07); }
+  .demo-stage .dshwe-hicon-on { color: #6ea8fe; border-color: rgba(110,168,254,.55); }
+
+  /* ---- 左侧:假聊天区 ---- */
+  .demo-chat { position: absolute; inset: 0; display: flex; flex-direction: column; padding-top: 49px; transition: padding-right .25s ease; }
+  .demo-stage.panel-open .demo-chat { padding-right: 404px; }
   .demo-log { flex: 1; overflow: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
   .demo-log-empty { color: #5d646e; font-size: 12.5px; }
   .demo-msg {
     align-self: flex-end; max-width: 82%;
     background: #1e242c; border: 1px solid rgba(255,255,255,.08);
     border-radius: 12px 12px 4px 12px; padding: 8px 12px;
-    font-size: 12.5px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    color: #c8d0db; word-break: break-all;
+    font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color: #c8d0db; word-break: break-all; white-space: pre-wrap;
   }
+  .demo-msg .tag { color: #6ea8fe; }
   .demo-composer { flex: none; padding: 10px 14px 14px; border-top: 1px solid rgba(255,255,255,.07); background: rgba(255,255,255,.02); }
   .demo-composer textarea {
     width: 100%; height: 64px; resize: none;
     background: #0f1215; color: #e8e8e8;
     border: 1px solid rgba(255,255,255,.12); border-radius: 12px;
     padding: 10px 12px; font: inherit; font-size: 13px; outline: none;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px;
   }
   .demo-composer textarea:focus { border-color: #4176e6; }
   .demo-composer-bar { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
@@ -92,31 +140,63 @@
   }
   .demo-send:hover { background: #4c83f5; }
 
-  /* ---- 插件面板样式(与 src/client.js 完全一致) ---- */
+  /* ---- 插件弹窗(与真实插件一致:Tab 栏 + 文件/设置页) ---- */
   .demo-stage .dshwe-layer { position: absolute; inset: 0; z-index: 100; pointer-events: none; }
-  .dshwe-panel {
-    position: absolute; top: 14px; right: 14px; bottom: auto;
-    width: 384px; height: min(560px, calc(100% - 28px)); min-height: 320px;
-    pointer-events: auto;
+  .dshwe-popup {
+    position: absolute; right: 14px; top: 61px; bottom: 14px;
+    width: 384px;
     display: flex; flex-direction: column;
     background: #26282c;
     border: 1px solid rgba(128,128,128,.28);
-    border-radius: 24px;
-    box-shadow: 0 0 1px 0 rgba(0,0,0,.5), 0 12px 32px 0 rgba(0,0,0,.5);
-    color: #e8e8e8;
+    border-radius: 16px;
+    box-shadow: 0 12px 32px rgba(0,0,0,.5);
     overflow: hidden;
+    color: #e8e8e8;
+    pointer-events: auto;
+    opacity: 0;
+    transform: translateY(-8px) scale(.98);
+    transform-origin: top right;
+    transition: opacity .18s ease, transform .18s ease;
   }
-  .dshwe-head { display: flex; align-items: center; gap: 8px; flex: none; padding: 14px 16px 12px 18px; border-bottom: 1px solid rgba(255,255,255,.12); }
-  .dshwe-head-ico { color: #4176e6; display: inline-flex; flex: none; }
-  .dshwe-title { font-size: 15px; font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .dshwe-icobtn { border: 0; background: transparent; color: #9a9a9a; width: 28px; height: 28px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex: none; }
-  .dshwe-icobtn:hover { background: rgba(255,255,255,.08); color: #e8e8e8; }
-  .dshwe-selrow { display: flex; gap: 8px; padding: 12px 16px 6px; align-items: center; }
+  .dshwe-popup-on { opacity: 1; transform: translateY(0) scale(1); }
+  @media (prefers-reduced-motion: reduce) { .dshwe-popup { transition: none } }
+
+  .dshwe-tabs { display: flex; gap: 2px; padding: 0 14px; flex: none; border-bottom: 1px solid rgba(255,255,255,.12); }
+  .dshwe-tab {
+    flex: 1; position: relative; height: 36px;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    border: 0; background: transparent; color: #9a9a9a;
+    font: inherit; font-size: 12.5px; font-weight: 500; cursor: pointer;
+    border-radius: 10px 10px 0 0;
+  }
+  .dshwe-tab:hover { color: #e8e8e8; background: rgba(255,255,255,.05); }
+  .dshwe-tab-on { color: #e8e8e8; }
+  .dshwe-tab-ind {
+    position: absolute; left: 24%; right: 24%; bottom: -1px; height: 2px; border-radius: 999px;
+    background: #4176e6;
+    opacity: 0; transform: scaleX(.4);
+    transition: opacity .16s ease, transform .16s ease;
+  }
+  .dshwe-tab-on .dshwe-tab-ind { opacity: 1; transform: scaleX(1); }
+  .dshwe-tabbody { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  .dshwe-popup[hidden], .dshwe-tabbody[hidden], .dshwe-selbar[hidden], .dshwe-preview[hidden], .dshwe-hint[hidden] { display: none !important; }
+
+  .dshwe-selrow { display: flex; gap: 8px; padding: 10px 16px 6px; align-items: center; }
   .dshwe-sel { flex: 1; min-width: 0; height: 30px; background: transparent; color: #e8e8e8; border: 1px solid rgba(255,255,255,.12); border-radius: 8px; padding: 0 8px; font: inherit; font-size: 12.5px; outline: none; }
   .dshwe-sel:focus { border-color: #4176e6; }
   .dshwe-sel option { background: #1c1e22; }
-  .dshwe-hintline { display: flex; align-items: center; gap: 6px; padding: 4px 18px 8px; color: #8a8a8a; font-size: 11px; }
-  .dshwe-tree { flex: 1; overflow: auto; padding: 2px 6px 14px; }
+  .dshwe-filterrow { display: flex; gap: 6px; padding: 0 16px 6px; align-items: center; }
+  .dshwe-filter { flex: 1; min-width: 0; height: 30px; background: transparent; color: #e8e8e8; border: 1px solid rgba(255,255,255,.12); border-radius: 8px; padding: 0 8px; font: inherit; font-size: 12.5px; outline: none; }
+  .dshwe-filter:focus { border-color: #4176e6; }
+  .dshwe-filter::placeholder { color: #8a8a8a; }
+  .dshwe-filter-clear { flex: none; border: 0; background: transparent; color: #9a9a9a; width: 26px; height: 26px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+  .dshwe-filter-clear:hover { color: #e8e8e8; background: rgba(255,255,255,.08); }
+  .dshwe-icobtn { border: 0; background: transparent; color: #9a9a9a; width: 28px; height: 28px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+  .dshwe-icobtn:hover { background: rgba(255,255,255,.08); color: #e8e8e8; }
+  .dshwe-hintline { display: flex; align-items: center; gap: 6px; padding: 0 18px 8px; color: #8a8a8a; font-size: 11px; }
+  .dshwe-tree { flex: 1; overflow: auto; padding: 2px 6px 10px; }
+  .dshwe-tree-note { padding: 6px 16px 2px; color: #8a8a8a; font-size: 11px; }
+
   .dshwe-row { display: flex; align-items: center; gap: 7px; padding: 4.5px 10px; cursor: pointer; user-select: none; white-space: nowrap; border: 0; width: 100%; text-align: left; background: transparent; color: inherit; font: inherit; border-radius: 10px; }
   .dshwe-row:hover { background: rgba(255,255,255,.08); }
   .dshwe-row-file { cursor: grab; }
@@ -127,9 +207,63 @@
   .dshwe-ico { flex: none; display: inline-flex; align-items: center; justify-content: center; }
   .dshwe-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; }
   .dshwe-row-dir .dshwe-name { font-weight: 600; }
+  .dshwe-row-sel { background: rgba(65,118,230,.16); box-shadow: inset 2px 0 0 #4176e6; }
+  .dshwe-row-sel:hover { background: rgba(65,118,230,.24); }
   .dshwe-size { flex: none; color: #8a8a8a; font-size: 11px; font-variant-numeric: tabular-nums; padding-left: 6px; }
-  .dshwe-insert { flex: none; display: inline-flex; align-items: center; color: #4176e6; opacity: 0; transition: opacity .12s ease; }
-  .dshwe-row:hover .dshwe-insert { opacity: 1; }
+  .dshwe-eye, .dshwe-insert { flex: none; display: inline-flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .12s ease; color: #9a9a9a; cursor: pointer; }
+  .dshwe-eye:hover { color: #6ea8fe; }
+  .dshwe-insert { color: #6ea8fe; }
+  .dshwe-row:hover .dshwe-eye, .dshwe-row:hover .dshwe-insert { opacity: 1; }
+
+  .dshwe-selbar { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-top: 1px solid rgba(255,255,255,.12); background: #222426; flex: none; }
+  .dshwe-selbar-count { flex: 1; min-width: 0; font-size: 12px; color: #e8e8e8; font-variant-numeric: tabular-nums; }
+  .dshwe-prevbtn { flex: none; border: 1px solid rgba(255,255,255,.16); background: transparent; color: #9a9a9a; border-radius: 8px; padding: 4px 10px; font: inherit; font-size: 12px; cursor: pointer; }
+  .dshwe-prevbtn:hover { color: #e8e8e8; background: rgba(255,255,255,.08); }
+  .dshwe-prevbtn-primary { color: #fff; background: #4176e6; border-color: transparent; }
+  .dshwe-prevbtn-primary:hover { opacity: .9; background: #4176e6; }
+  .dshwe-pager-btn { flex: none; width: 24px; height: 24px; border: 1px solid rgba(255,255,255,.16); background: transparent; color: #9a9a9a; border-radius: 7px; font: inherit; font-size: 14px; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+  .dshwe-pager-btn:hover:not(:disabled) { color: #e8e8e8; background: rgba(255,255,255,.08); }
+  .dshwe-pager-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  .dshwe-preview { flex: none; max-height: 46%; display: flex; flex-direction: column; border-top: 1px solid rgba(255,255,255,.12); background: #222426; }
+  .dshwe-preview-head { display: flex; align-items: center; gap: 8px; padding: 10px 14px 6px; }
+  .dshwe-preview-name { font-size: 12.5px; font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dshwe-preview-meta { font-size: 11px; color: #8a8a8a; flex: none; }
+  .dshwe-preview-pre { flex: 1; overflow: auto; margin: 0; padding: 4px 14px 10px; font: 11.5px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #c8d0db; white-space: pre; }
+  .dshwe-preview-actions { display: flex; align-items: center; gap: 8px; padding: 0 14px 10px; }
+
+  /* ---- 设置页 ---- */
+  .dshwe-set { display: flex; flex-direction: column; gap: 2px; padding: 8px 16px 14px; overflow: auto; flex: 1; }
+  .dshwe-setsec { font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: #8a8a8a; padding: 10px 4px 6px; }
+  .dshwe-setrow { display: flex; align-items: center; gap: 12px; padding: 9px 10px; border-radius: 12px; }
+  .dshwe-setrow:hover { background: rgba(255,255,255,.05); }
+  .dshwe-setinfo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .dshwe-setlabel { font-size: 12.5px; color: #e8e8e8; }
+  .dshwe-setcap { font-size: 11px; color: #8a8a8a; }
+  .dshwe-setselect {
+    flex: none; height: 28px; min-width: 118px;
+    background: transparent; color: #e8e8e8;
+    border: 1px solid rgba(255,255,255,.16);
+    border-radius: 8px; padding: 0 8px; font: inherit; font-size: 12px; outline: none;
+  }
+  .dshwe-setselect option { background: #1c1e22; }
+  .dshwe-switch {
+    flex: none; width: 34px; height: 20px; border-radius: 999px; padding: 0;
+    border: 1px solid rgba(255,255,255,.2);
+    background: rgba(255,255,255,.12);
+    position: relative; cursor: pointer; transition: background .15s ease, border-color .15s ease;
+  }
+  .dshwe-switch::after {
+    content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%;
+    background: #9a9a9a;
+    transition: transform .15s ease;
+  }
+  .dshwe-switch[aria-checked='true'] { background: #4176e6; border-color: transparent; }
+  .dshwe-switch[aria-checked='true']::after { transform: translateX(14px); background: #fff; }
+  .dshwe-setnote { font-size: 11px; color: #777; padding: 2px 10px 8px; }
+  .dshwe-setfoot { display: flex; justify-content: flex-end; padding: 8px 4px 2px; }
+
+  /* ---- 拖拽提示 ---- */
   .dshwe-hint {
     position: absolute; inset: 10px; z-index: 200;
     border: 1.5px dashed #4176e6; border-radius: 20px;
@@ -138,14 +272,12 @@
   }
   .dshwe-hint-chip { display: flex; align-items: center; gap: 7px; background: #26282c; color: #e8e8e8; padding: 9px 15px; border-radius: 999px; font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,.4); }
   .dshwe-hint-chip svg { color: #4176e6; }
-  .dshwe-act { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; color: #9a9a9a; padding: 5px 8px; border-radius: 8px; cursor: pointer; font: inherit; }
-  .dshwe-act:hover { background: rgba(255,255,255,.08); color: #e8e8e8; }
-  .dshwe-act-on { color: #4176e6; }
-  .dshwe-note { padding: 6px 16px; color: #8a8a8a; font-size: 12px; display: flex; align-items: center; gap: 8px; }
   .demo-send:focus-visible, .dshwe-icobtn:focus-visible, .dshwe-act:focus-visible { outline: 2px solid #4176e6; outline-offset: -2px; }
   @media (prefers-reduced-motion: reduce) {
     .demo-chat { transition: none; }
     .dshwe-chev { transition: none; }
+    .dshwe-tab-ind { transition: none; }
+    .dshwe-popup { transition: none; }
   }
 </style>
 </head>
@@ -153,26 +285,48 @@
 
   <div class="demo-note">
     <b>dsh-workspace-explorer · Interactive Demo</b>
-    <span>模拟预览 — 与真实插件 UI 一致(文件树面板 + 点击/拖拽插入引用)</span>
-    <span>Mock preview of the DeepSeek Harness plugin UI — click a file, or drag it into the composer below.</span>
+    <span>模拟预览 — 与真实插件 UI 一致(会话头部入口 + 文件树面板 + 多选/拖拽/分页预览)</span>
+    <span>Mock preview of the DeepSeek Harness plugin — header entry, file tree panel, multi-select / drag / paginated preview.</span>
     <span class="pill">Mock · 非真实运行环境</span>
     <button type="button" class="demo-lang" id="langBtn">English</button>
     <a href="https://github.com/Jiyr0119/dsh-workspace-explorer" target="_blank" rel="noopener">GitHub ↗</a>
   </div>
 
   <div class="demo-stage" id="stage">
+    <!-- 会话头部:面包屑 + 工具区(与 DSH 一致) -->
+    <div class="demo-header">
+      <div class="demo-header-left">
+        <span class="dot"></span>
+        <nav class="demo-crumbs" aria-label="会话层级">
+          <span class="crumb" id="crumbWs">workspace</span>
+          <span class="crumb-sep">/</span>
+          <span class="crumb crumb-current" id="crumbCur">my-app</span>
+        </nav>
+      </div>
+      <div class="demo-header-utils">
+        <button type="button" class="demo-sessionlog" id="sessionLogBtn" title="Session log · 演示无操作">
+          <span>Session log</span>
+          <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M8 2.5v7.5M5.7 7.5L8 9.8l2.3-2.3M3.5 12.5h9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button type="button" class="dshwe-hicon" id="toggleBtn" title="文件目录">
+          <span id="toggleLabel">工作区文件</span>
+          <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M1.5 2.5A1.5 1.5 0 0 1 3 1h3.2l1.6 2H13a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 13 13H3a1.5 1.5 0 0 1-1.5-1.5v-9z" fill="currentColor"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- 聊天区 -->
     <div class="demo-chat">
-      <div class="demo-chat-head"><span class="dot"></span> DeepSeek Harness · Preview</div>
       <div class="demo-log" id="log"><div class="demo-log-empty" id="logEmpty">发送文件引用后,这里会出现 `[file: …]` 消息(模拟)。</div></div>
       <div class="demo-composer" id="composerCard">
         <textarea id="composer" placeholder="在此输入… 或点击/拖拽右侧文件"></textarea>
         <div class="demo-composer-bar">
-          <button type="button" class="dshwe-act" id="toggleBtn" title="工作区文件">📁 文件</button>
           <button type="button" class="demo-send" id="sendBtn">发送 Send</button>
         </div>
       </div>
     </div>
 
+    <!-- 插件弹窗层 -->
     <div class="dshwe-layer" id="layer">
       <div class="dshwe-hint" id="dropHint" hidden>
         <div class="dshwe-hint-chip">
@@ -180,23 +334,91 @@
           <span id="dropHintText">松开以插入文件引用到输入框</span>
         </div>
       </div>
-      <div class="dshwe-panel" id="panel" hidden>
-        <div class="dshwe-head">
-          <span class="dshwe-head-ico" id="headIco"></span>
-          <div class="dshwe-title" id="panelTitle">工作区文件</div>
-          <button type="button" class="dshwe-icobtn" id="refreshBtn" title="刷新">
-            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.61-3.89M13.5 1.5v3h-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+
+      <div class="dshwe-popup" id="popup" hidden>
+        <div class="dshwe-tabs" role="tablist">
+          <button type="button" role="tab" class="dshwe-tab dshwe-tab-on" data-tab="files" id="tabFilesBtn">
+            <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M1.5 2.5A1.5 1.5 0 0 1 3 1h3.2l1.6 2H13a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 13 13H3a1.5 1.5 0 0 1-1.5-1.5v-9z" fill="currentColor"/></svg>
+            <span id="tabFilesLabel">文件</span><span class="dshwe-tab-ind"></span>
           </button>
-          <button type="button" class="dshwe-icobtn" id="closeBtn" title="关闭">
-            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <button type="button" role="tab" class="dshwe-tab" data-tab="settings" id="tabSettingsBtn">
+            <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M8 9.9a1.9 1.9 0 1 1 0-3.8 1.9 1.9 0 0 1 0 3.8zM8 4.3V2.9M8 13.1v-1.4M4.3 8H2.9M13.1 8h-1.4M5.2 5.2L4.1 4.1M11.9 11.9l-1.1-1.1M5.2 10.8L4.1 11.9M11.9 4.1l-1.1 1.1" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span id="tabSettingsLabel">设置</span><span class="dshwe-tab-ind"></span>
           </button>
         </div>
-        <div class="dshwe-selrow">
-          <select class="dshwe-sel" id="wsSel"></select>
-          <button type="button" class="dshwe-icobtn" id="addBtn" title="添加工作区(演示)">+</button>
+
+        <!-- 文件页 -->
+        <div class="dshwe-tabbody" id="tabFiles">
+          <div class="dshwe-selrow">
+            <select class="dshwe-sel" id="wsSel"></select>
+            <button type="button" class="dshwe-icobtn" id="addBtn" title="添加工作区(演示)">+</button>
+          </div>
+          <div class="dshwe-filterrow">
+            <input class="dshwe-filter" id="filter" placeholder="搜索文件…" />
+            <button type="button" class="dshwe-filter-clear" id="filterClear" title="清除" hidden>×</button>
+          </div>
+          <div class="dshwe-hintline"><span>↩</span><span id="hintText">点击插入;Shift / ⌘ 点击多选;目录可拖拽</span></div>
+          <div class="dshwe-tree" id="tree"></div>
+          <div class="dshwe-selbar" id="selbar" hidden>
+            <span class="dshwe-selbar-count" id="selCount">已选 0 项</span>
+            <button type="button" class="dshwe-prevbtn dshwe-prevbtn-primary" id="selInsert">插入所选</button>
+            <button type="button" class="dshwe-prevbtn" id="selClear">清除</button>
+          </div>
+          <div class="dshwe-preview" id="preview" hidden>
+            <div class="dshwe-preview-head">
+              <span class="dshwe-preview-name" id="previewName"></span>
+              <span class="dshwe-preview-meta" id="previewMeta"></span>
+            </div>
+            <pre class="dshwe-preview-pre" id="previewPre"></pre>
+            <div class="dshwe-preview-actions">
+              <button type="button" class="dshwe-pager-btn" id="prevPage" title="上一页">‹</button>
+              <button type="button" class="dshwe-pager-btn" id="nextPage" title="下一页">›</button>
+              <button type="button" class="dshwe-prevbtn" id="previewRef">插入引用</button>
+              <button type="button" class="dshwe-prevbtn dshwe-prevbtn-primary" id="previewContent">插入内容</button>
+              <button type="button" class="dshwe-prevbtn" id="previewClose">关闭</button>
+            </div>
+          </div>
         </div>
-        <div class="dshwe-hintline"><span>↩</span><span id="hintText">点击文件或拖拽到输入框,发送给模型</span></div>
-        <div class="dshwe-tree" id="tree"></div>
+
+        <!-- 设置页 -->
+        <div class="dshwe-tabbody" id="tabSettings" hidden>
+          <div class="dshwe-set">
+            <div class="dshwe-setsec" id="setGeneral">通用</div>
+            <div class="dshwe-setrow">
+              <div class="dshwe-setinfo"><div class="dshwe-setlabel" id="setNoise">隐藏噪声目录</div><div class="dshwe-setcap">.git · node_modules · dist 等</div></div>
+              <button type="button" role="switch" aria-checked="true" class="dshwe-switch" data-key="hideNoise"></button>
+            </div>
+            <div class="dshwe-setrow">
+              <div class="dshwe-setinfo"><div class="dshwe-setlabel" id="setSize">显示文件大小</div></div>
+              <button type="button" role="switch" aria-checked="true" class="dshwe-switch" data-key="showSize"></button>
+            </div>
+            <div class="dshwe-setrow">
+              <div class="dshwe-setinfo"><div class="dshwe-setlabel" id="setRef">文件引用格式</div></div>
+              <select class="dshwe-setselect" id="setRefSel">
+                <option value="relative">相对路径</option>
+                <option value="absolute">绝对路径</option>
+              </select>
+            </div>
+            <div class="dshwe-setrow">
+              <div class="dshwe-setinfo"><div class="dshwe-setlabel" id="setPeek">预览行数</div></div>
+              <select class="dshwe-setselect" id="setPeekSel">
+                <option value="30">30</option>
+                <option value="60" selected>60</option>
+                <option value="120">120</option>
+              </select>
+            </div>
+            <div class="dshwe-setrow">
+              <div class="dshwe-setinfo"><div class="dshwe-setlabel" id="setWidth">面板宽度</div></div>
+              <select class="dshwe-setselect" id="setWidthSel">
+                <option value="320">紧凑 · 320</option>
+                <option value="384" selected>标准 · 384</option>
+                <option value="480">宽松 · 480</option>
+              </select>
+            </div>
+            <div class="dshwe-setfoot"><button type="button" class="dshwe-prevbtn" id="setReset">恢复默认</button></div>
+            <div class="dshwe-setnote" id="setNote">配置在本次会话内生效,重启插件后恢复默认。</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -225,9 +447,9 @@
     svg: ['#5a67d8', 'image'], png: ['#5a67d8', 'image'], ico: ['#5a67d8', 'image'], csv: ['#2fa97c', 'plain']
   }
   var DEFAULT_META = ['#8a919c', 'plain']
+  var NOISE_DIRS = ['node_modules', '.git', 'dist', '__pycache__', '.venv', 'build', '.next']
 
   function extOf(name) { var i = name.lastIndexOf('.'); return i <= 0 ? '' : name.slice(i + 1).toLowerCase() }
-
   function svg(paths, size) {
     var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
     s.setAttribute('viewBox', '0 0 16 16'); s.setAttribute('width', size); s.setAttribute('height', size)
@@ -248,29 +470,30 @@
   function chevronSvg(open) {
     return svg([{ d: 'M6 4l4 4-4 4', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }], 14)
   }
-  document.getElementById('headIco').appendChild(folderSvg(false))
 
-  // ---------- 模拟工作区数据 ----------
+  // ---------- 模拟工作区数据(文件带行数,供分页预览) ----------
   var WORKSPACES = {
     'my-app': {
       label: 'my-app',
       dirs: {
         'src': {
-          dirs: { 'components': { dirs: {}, files: [['Button.tsx', 1284], ['Card.tsx', 2048]] } },
-          files: [['app.tsx', 5621], ['api.ts', 3390], ['styles.css', 1874]]
+          dirs: {
+            'components': { dirs: {}, files: [['Button.tsx', 1284, 140], ['Card.tsx', 2048, 96]] }
+          },
+          files: [['app.tsx', 5621, 180], ['api.ts', 3390, 120], ['styles.css', 1874, 88]]
         },
-        'public': { dirs: {}, files: [['logo.svg', 8934], ['favicon.ico', 15486]] }
+        'public': { dirs: {}, files: [['logo.svg', 8934, 40], ['favicon.ico', 15486, 1]] }
       },
-      files: [['package.json', 2411], ['README.md', 1189], ['tsconfig.json', 742], ['vite.config.ts', 918], ['.env', 120]]
+      files: [['package.json', 2411, 60], ['README.md', 1189, 45], ['tsconfig.json', 742, 30], ['vite.config.ts', 918, 50], ['.env', 120, 8]]
     },
     'data-pipeline': {
       label: 'data-pipeline',
       dirs: {
-        'src': { dirs: {}, files: [['main.py', 4922], ['models.py', 3810], ['utils.py', 2214]] },
-        'scripts': { dirs: {}, files: [['run.sh', 342]] },
-        'data': { dirs: {}, files: [['sample.csv', 12840], ['schema.json', 861]] }
+        'src': { dirs: {}, files: [['main.py', 4922, 150], ['models.py', 3810, 210], ['utils.py', 2214, 95]] },
+        'scripts': { dirs: {}, files: [['run.sh', 342, 20]] },
+        'data': { dirs: {}, files: [['sample.csv', 12840, 300], ['schema.json', 861, 40]] }
       },
-      files: [['requirements.txt', 210], ['pyproject.toml', 1502], ['README.md', 963], ['.env', 88]]
+      files: [['requirements.txt', 210, 12], ['pyproject.toml', 1502, 55], ['README.md', 963, 40], ['.env', 88, 6]]
     }
   }
 
@@ -283,12 +506,18 @@
   // ---------- 状态 ----------
   var state = {
     open: false,
+    tab: 'files',
     ws: 'my-app',
-    expanded: {} // rel -> true
+    expanded: {},
+    selected: new Set(),
+    selAnchor: null,
+    filter: '',
+    preview: null, // { rel, name, page, total }
+    cfg: { hideNoise: true, showSize: true, refStyle: 'relative', peekLines: 60, width: 384 }
   }
 
   var $ = function (id) { return document.getElementById(id) }
-  var panel = $('panel'), layer = $('layer'), tree = $('tree'), wsSel = $('wsSel')
+  var popup = $('popup'), layer = $('layer'), tree = $('tree'), wsSel = $('wsSel')
   var logEl = $('log'), composer = $('composer'), dropHint = $('dropHint'), composerCard = $('composerCard')
 
   // 工作区下拉
@@ -302,136 +531,321 @@
   // ---------- 语言切换 ----------
   var STR = {
     zh: {
-      'panel.title': '工作区文件', hint: '点击文件或拖拽到输入框,发送给模型',
-      dropHint: '松开以插入文件引用到输入框', composerPh: '在此输入… 或点击/拖拽右侧文件',
-      send: '发送', files: '文件', logEmpty: '发送文件引用后,这里会出现 `[file: …]` 消息(模拟)。',
-      langBtn: 'English', rowTip: '点击或拖拽到输入框', insertTip: '插入引用', refresh: '刷新', close: '关闭'
+      'panel.title': '工作区文件', hint: '点击插入;Shift / ⌘ 点击多选;目录可拖拽',
+      dropHint: '松开以插入文件引用到输入框', dropHintDir: '松开以插入目录树',
+      composerPh: '在此输入… 或点击/拖拽右侧文件',
+      send: '发送', files: '文件', settings: '设置', logEmpty: '发送文件引用后,这里会出现 `[file: …]` 消息(模拟)。',
+      langBtn: 'English', rowTip: '点击或拖拽到输入框', insertTip: '插入引用', previewTip: '预览',
+      refresh: '刷新', close: '关闭', searchPh: '搜索文件…', clear: '清除',
+      selCount: '已选 {n} 项', selInsert: '插入所选', previewPage: '第 {n} 页', previewLines: '{n} 行',
+      prev: '上一页', next: '下一页', insertRef: '插入引用', insertContent: '插入内容',
+      hit: '匹配 {n} 项', hitNone: '没有匹配「{q}」的文件',
+      toggleLabel: '工作区文件', toggleTitle: '文件目录', wsCrumb: 'workspace', wsCur: 'my-app',
+      general: '通用', setNoise: '隐藏噪声目录', setNoiseDesc: '.git · node_modules · dist 等',
+      setSize: '显示文件大小', setRef: '文件引用格式', rel: '相对路径', abs: '绝对路径',
+      setPeek: '预览行数', setWidth: '面板宽度', widthNarrow: '紧凑 · 320', widthStd: '标准 · 384', widthWide: '宽松 · 480',
+      reset: '恢复默认', setNote: '配置在本次会话内生效,重启插件后恢复默认。'
     },
     en: {
-      'panel.title': 'Workspace Files', hint: 'Click a file or drag it into the composer to send',
-      dropHint: 'Release to insert the file reference into the composer', composerPh: 'Type here… or click / drag files on the right',
-      send: 'Send', files: 'Files', logEmpty: 'File references sent here appear as `[file: …]` messages (mock).',
-      langBtn: '中文', rowTip: 'click or drag to the composer', insertTip: 'Insert reference', refresh: 'Refresh', close: 'Close'
+      'panel.title': 'Workspace Files', hint: 'Click to insert; Shift / ⌘ click to multi-select; drag folders',
+      dropHint: 'Release to insert the file reference into the composer', dropHintDir: 'Release to insert the folder tree',
+      composerPh: 'Type here… or click / drag files on the right',
+      send: 'Send', files: 'Files', settings: 'Settings', logEmpty: 'File references sent here appear as `[file: …]` messages (mock).',
+      langBtn: '中文', rowTip: 'click or drag to the composer', insertTip: 'Insert reference', previewTip: 'Preview',
+      refresh: 'Refresh', close: 'Close', searchPh: 'Search files…', clear: 'Clear',
+      selCount: '{n} selected', selInsert: 'Insert', previewPage: 'Page {n}', previewLines: '{n} lines',
+      prev: 'Previous page', next: 'Next page', insertRef: 'Insert reference', insertContent: 'Insert content',
+      hit: '{n} match(es)', hitNone: 'No files match "{q}"',
+      toggleLabel: 'Workspace Files', toggleTitle: 'Files', wsCrumb: 'workspace', wsCur: 'my-app',
+      general: 'General', setNoise: 'Hide noise dirs', setNoiseDesc: '.git · node_modules · dist …',
+      setSize: 'Show file sizes', setRef: 'Reference format', rel: 'Relative', abs: 'Absolute',
+      setPeek: 'Preview lines', setWidth: 'Panel width', widthNarrow: 'Narrow · 320', widthStd: 'Standard · 384', widthWide: 'Wide · 480',
+      reset: 'Reset to defaults', setNote: 'Settings apply for this run; they reset when the plugin restarts.'
     }
   }
   var lang = 'zh'
-  var tr = function (k) { return STR[lang][k] || k }
+  var tr = function (k, vars) {
+    var s = STR[lang][k] || k
+    if (vars) for (var key in vars) s = s.split('{' + key + '}').join(String(vars[key]))
+    return s
+  }
   function applyStrings() {
     $('langBtn').textContent = tr('langBtn')
     composer.placeholder = tr('composerPh')
     $('sendBtn').textContent = tr('send')
-    $('toggleBtn').textContent = '📁 ' + tr('files')
-    $('toggleBtn').title = tr('files')
+    $('toggleLabel').textContent = tr('toggleLabel')
+    $('toggleBtn').title = tr('toggleTitle')
+    $('tabFilesLabel').textContent = tr('files')
+    $('tabSettingsLabel').textContent = tr('settings')
+    $('filter').placeholder = tr('searchPh')
+    $('hintText').textContent = tr('hint')
+    $('crumbWs').textContent = tr('wsCrumb')
+    $('crumbCur').textContent = WORKSPACES[state.ws].label
+    $('setGeneral').textContent = tr('general')
+    $('setNoise').textContent = tr('setNoise')
+    document.querySelectorAll('#tabSettings .dshwe-setcap')[0].textContent = tr('setNoiseDesc')
+    $('setSize').textContent = tr('setSize')
+    $('setRef').textContent = tr('setRef')
+    $('setPeek').textContent = tr('setPeek')
+    $('setWidth').textContent = tr('setWidth')
+    $('setReset').textContent = tr('reset')
+    $('setNote').textContent = tr('setNote')
+    $('selInsert').textContent = tr('selInsert')
+    $('selClear').textContent = tr('clear')
+    $('previewRef').textContent = tr('insertRef')
+    $('previewContent').textContent = tr('insertContent')
+    $('previewClose').textContent = tr('close')
     var le = document.getElementById('logEmpty'); if (le) le.textContent = tr('logEmpty')
-    var ht = document.getElementById('hintText'); if (ht) ht.textContent = tr('hint')
     var dh = document.getElementById('dropHintText'); if (dh) dh.textContent = tr('dropHint')
-    $('refreshBtn').title = tr('refresh'); $('refreshBtn').setAttribute('aria-label', tr('refresh'))
-    $('closeBtn').title = tr('close'); $('closeBtn').setAttribute('aria-label', tr('close'))
+    var opts = $('setRefSel').options
+    opts[0].textContent = tr('rel'); opts[1].textContent = tr('abs')
+    var wopts = $('setWidthSel').options
+    wopts[0].textContent = tr('widthNarrow'); wopts[1].textContent = tr('widthStd'); wopts[2].textContent = tr('widthWide')
     renderPanel()
     renderTree()
   }
   $('langBtn').addEventListener('click', function () { lang = lang === 'zh' ? 'en' : 'zh'; applyStrings() })
 
-  // ---------- 渲染 ----------
+  // ---------- 面板开关与 Tab ----------
   function renderPanel() {
-    panel.hidden = !state.open
+    popup.hidden = !state.open
+    popup.classList.toggle('dshwe-popup-on', state.open)
     document.getElementById('stage').classList.toggle('panel-open', state.open)
-    $('toggleBtn').classList.toggle('dshwe-act-on', state.open)
+    $('toggleBtn').classList.toggle('dshwe-hicon-on', state.open)
+    $('tabFiles').hidden = state.tab !== 'files'
+    $('tabSettings').hidden = state.tab !== 'settings'
+    $('tabFilesBtn').classList.toggle('dshwe-tab-on', state.tab === 'files')
+    $('tabSettingsBtn').classList.toggle('dshwe-tab-on', state.tab === 'settings')
   }
-  function renderTree() {
+  $('toggleBtn').addEventListener('click', function () { state.open = !state.open; renderPanel() })
+  $('tabFilesBtn').addEventListener('click', function () { state.tab = 'files'; renderPanel() })
+  $('tabSettingsBtn').addEventListener('click', function () { state.tab = 'settings'; renderPanel() })
+  $('addBtn').addEventListener('click', function () {
+    var keys = Object.keys(WORKSPACES)
+    var next = keys[(keys.indexOf(state.ws) + 1) % keys.length]
+    switchWs(next)
+  })
+  wsSel.addEventListener('change', function () { switchWs(wsSel.value) })
+  function switchWs(ws) {
+    state.ws = ws; state.expanded = {}; state.selected = new Set(); state.selAnchor = null
+    state.filter = ''; $('filter').value = ''; $('filterClear').hidden = true
+    $('crumbCur').textContent = WORKSPACES[ws].label
+    renderPanel(); renderTree()
+  }
+
+  // ---------- 目录树数据访问 ----------
+  function nodeAt(node, rel) {
+    if (rel === '') return node
+    var segs = rel.split('/')
+    var cur = node
+    for (var i = 0; i < segs.length; i++) {
+      if (!cur || !cur.dirs) return null
+      cur = cur.dirs[segs[i]]
+    }
+    return cur
+  }
+  function dirHasNoise(node, name) { return state.cfg.hideNoise && NOISE_DIRS.indexOf(name) >= 0 }
+
+  // ---------- 平铺可见条目(搜索 / 展开树) ----------
+  function flatVisible() {
     var ws = WORKSPACES[state.ws]
-    $('panelTitle').textContent = tr('panel.title') + ' · ' + ws.label
-    tree.textContent = ''
-    wsSel.value = state.ws
-    renderNode(tree, '', ws, 0)
+    var q = state.filter.trim().toLowerCase()
+    var out = []
+    if (q !== '') {
+      // 搜索:遍历整棵工作区树,匹配文件名
+      var walkAll = function (node, baseRel) {
+        var dirNames = Object.keys(node.dirs || {}).sort()
+        dirNames.forEach(function (name) {
+          if (dirHasNoise(node, name)) return
+          var rel = baseRel === '' ? name : baseRel + '/' + name
+          out.push({ name: name, type: 'directory', rel: rel, dir: node.dirs[name], depth: 0 })
+          walkAll(node.dirs[name], rel)
+        })
+        ;(node.files || []).forEach(function (f) {
+          if (f[0].toLowerCase().indexOf(q) >= 0) {
+            var rel2 = baseRel === '' ? f[0] : baseRel + '/' + f[0]
+            out.push({ name: f[0], type: 'file', rel: rel2, size: f[1], lines: f[2], depth: 0 })
+          }
+        })
+      }
+      walkAll(ws, '')
+    } else {
+      var walkExp = function (node, baseRel, depth) {
+        var dirNames = Object.keys(node.dirs || {}).sort()
+        dirNames.forEach(function (name) {
+          if (dirHasNoise(node, name)) return
+          var rel = baseRel === '' ? name : baseRel + '/' + name
+          out.push({ name: name, type: 'directory', rel: rel, dir: node.dirs[name], depth: depth })
+          if (state.expanded[rel]) walkExp(node.dirs[name], rel, depth + 1)
+        })
+        ;(node.files || []).slice().sort(function (a, b) { return a[0].localeCompare(b[0]) })
+          .forEach(function (f) {
+            var rel2 = baseRel === '' ? f[0] : baseRel + '/' + f[0]
+            out.push({ name: f[0], type: 'file', rel: rel2, size: f[1], lines: f[2], depth: depth })
+          })
+      }
+      walkExp(ws, '', 0)
+    }
+    return out
   }
-  function renderNode(container, baseRel, node, depth) {
-    // 目录在前,按名排序
-    var dirNames = Object.keys(node.dirs).sort()
-    dirNames.forEach(function (name) {
-      var rel = baseRel === '' ? name : baseRel + '/' + name
-      var open = !!state.expanded[rel]
-      var row = document.createElement('button')
-      row.type = 'button'
-      row.className = 'dshwe-row dshwe-row-dir'
-      row.style.paddingLeft = (10 + depth * 16) + 'px'
-      row.title = rel
 
-      var slot = document.createElement('span'); slot.className = 'dshwe-chev-slot'
+  // ---------- 渲染树 ----------
+  function renderTree() {
+    tree.textContent = ''
+    var list = flatVisible()
+    var q = state.filter.trim()
+    if (q !== '') {
+      var note = document.createElement('div')
+      note.className = 'dshwe-tree-note'
+      note.textContent = list.length ? tr('hit', { n: list.length }) : tr('hitNone', { q: q })
+      tree.appendChild(note)
+    }
+    list.forEach(function (entry) { tree.appendChild(rowFor(entry)) })
+    // 选中操作条
+    var n = state.selected.size
+    $('selbar').hidden = n === 0
+    $('selCount').textContent = tr('selCount', { n: n })
+  }
+
+  function rowFor(entry) {
+    var isDir = entry.type === 'directory'
+    var isSel = state.selected.has(entry.rel)
+    var row = document.createElement('button')
+    row.type = 'button'
+    row.className = 'dshwe-row' + (isDir ? ' dshwe-row-dir' : ' dshwe-row-file') + (isSel ? ' dshwe-row-sel' : '')
+    row.style.paddingLeft = (10 + entry.depth * 16) + 'px'
+    row.title = entry.rel + (isDir ? '' : ' · ' + tr('rowTip'))
+    row.draggable = true
+
+    var slot = document.createElement('span'); slot.className = 'dshwe-chev-slot'
+    if (isDir) {
+      var open = !!state.expanded[entry.rel]
       var ch = chevronSvg(open); ch.classList.toggle('dshwe-chev-on', open); slot.appendChild(ch)
-      row.appendChild(slot)
-      row.appendChild(folderSvg(open))
-      var nm = document.createElement('span'); nm.className = 'dshwe-name'; nm.textContent = name; row.appendChild(nm)
+    }
+    row.appendChild(slot)
+    var meta = FILE_META[extOf(entry.name)] || DEFAULT_META
+    row.appendChild(isDir ? folderSvg(!!state.expanded[entry.rel]) : fileSvg(meta[0], GLYPHS[meta[1]] || ''))
+    var nm = document.createElement('span'); nm.className = 'dshwe-name'; nm.textContent = entry.name; row.appendChild(nm)
 
-      row.addEventListener('click', function () {
-        if (state.expanded[rel]) delete state.expanded[rel]; else state.expanded[rel] = true
-        renderTree()
-      })
-      container.appendChild(row)
-      if (open) renderNode(container, rel, node.dirs[name], depth + 1)
-    })
+    if (!isDir && state.cfg.showSize) {
+      var sz = document.createElement('span'); sz.className = 'dshwe-size'; sz.textContent = fmtSize(entry.size); row.appendChild(sz)
+    }
+    if (!isDir) {
+      var eye = document.createElement('span'); eye.className = 'dshwe-eye'; eye.title = tr('previewTip')
+      eye.appendChild(svg([{ d: 'M1.5 8s2.6-4.5 6.5-4.5S14.5 8 14.5 8 11.9 12.5 8 12.5 1.5 8 1.5 8zM8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4z', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.3, 'stroke-linejoin': 'round' }], 13))
+      eye.addEventListener('mousedown', function (e) { e.preventDefault(); e.stopPropagation(); openPreview(entry) })
+      eye.addEventListener('click', function (e) { e.stopPropagation() })
+      row.appendChild(eye)
 
-    var fileNames = (node.files || []).slice().sort(function (a, b) { return a[0].localeCompare(b[0]) })
-    fileNames.forEach(function (f) {
-      var name = f[0], size = f[1]
-      var rel = baseRel === '' ? name : baseRel + '/' + name
-      var meta = FILE_META[extOf(name)] || DEFAULT_META
-      var row = document.createElement('button')
-      row.type = 'button'
-      row.className = 'dshwe-row dshwe-row-file'
-      row.style.paddingLeft = (10 + depth * 16) + 'px'
-      row.title = rel + ' · ' + tr('rowTip')
-      row.draggable = true
-
-      var slot = document.createElement('span'); slot.className = 'dshwe-chev-slot'; row.appendChild(slot)
-      row.appendChild(fileSvg(meta[0], meta[1]))
-      var nm = document.createElement('span'); nm.className = 'dshwe-name'; nm.textContent = name; row.appendChild(nm)
-      var sz = document.createElement('span'); sz.className = 'dshwe-size'; sz.textContent = fmtSize(size); row.appendChild(sz)
       var ins = document.createElement('span'); ins.className = 'dshwe-insert'; ins.title = tr('insertTip')
       ins.appendChild(svg([{ d: 'M8 2.5v7.5M5.7 7.5L8 9.8l2.3-2.3M3.5 12.5h9', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.4, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }], 13))
+      ins.addEventListener('mousedown', function (e) { e.preventDefault(); e.stopPropagation(); insertMarker(entry) })
+      ins.addEventListener('click', function (e) { e.stopPropagation() })
       row.appendChild(ins)
+    }
 
-      row.addEventListener('click', function () { insertMarker(rel) })
-      row.addEventListener('dragstart', function (e) {
-        e.dataTransfer.setData('text/plain', '[file: ' + rel + ']')
-        e.dataTransfer.setData('application/x-dsh-ws-file', JSON.stringify({ rel: rel, name: name }))
-        e.dataTransfer.effectAllowed = 'copy'
-        dropHint.hidden = false
-      })
-      container.appendChild(row)
-    })
+    row.addEventListener('click', function (e) { onRowClick(e, entry) })
+    row.addEventListener('dragstart', function (e) { onDragStart(e, entry) })
+    return row
   }
 
-  // ---------- 插入与发送 ----------
-  function insertMarker(rel) {
-    var text = '[file: ' + rel + ']'
+  // ---------- 行交互:目录展开 / 文件插入 / Shift·⌘ 多选 ----------
+  function markerFor(entry) { return '[file: ' + entry.rel + ']' }
+  function insertMarker(entry) { appendToComposer(markerFor(entry)) }
+  function appendToComposer(text) {
     var draft = composer.value
     var sep = draft === '' || draft.endsWith('\n') ? '' : '\n'
     composer.value = draft + sep + text
     composer.focus()
     composer.setSelectionRange(composer.value.length, composer.value.length)
   }
-  $('sendBtn').addEventListener('click', function () {
-    var v = composer.value.trim()
-    if (!v) return
-    var m = document.createElement('div'); m.className = 'demo-msg'; m.textContent = v
-    var empty = logEl.querySelector('.demo-log-empty'); if (empty) empty.remove()
-    logEl.appendChild(m); logEl.scrollTop = logEl.scrollHeight
-    composer.value = ''
-  })
+  function onRowClick(e, entry) {
+    var isDir = entry.type === 'directory'
+    if (e.shiftKey || e.metaKey || e.ctrlKey) {
+      e.preventDefault()
+      if (e.shiftKey && state.selAnchor !== null) {
+        var list = flatVisible()
+        var a = -1, b = -1
+        list.forEach(function (x, i) { if (x.rel === state.selAnchor) a = i; if (x.rel === entry.rel) b = i })
+        if (a >= 0 && b >= 0) {
+          var lo = a < b ? a : b, hi = a < b ? b : a
+          for (var i = lo; i <= hi; i++) state.selected.add(list[i].rel)
+        }
+      } else if (state.selected.has(entry.rel)) {
+        state.selected.delete(entry.rel)
+      } else {
+        state.selected.add(entry.rel)
+      }
+      state.selAnchor = entry.rel
+      renderTree()
+    } else if (isDir) {
+      if (state.expanded[entry.rel]) delete state.expanded[entry.rel]
+      else state.expanded[entry.rel] = true
+      renderTree()
+    } else {
+      insertMarker(entry)
+    }
+  }
 
-  // ---------- 面板开关 ----------
-  $('toggleBtn').addEventListener('click', function () { state.open = !state.open; renderPanel() })
-  $('closeBtn').addEventListener('click', function () { state.open = false; renderPanel() })
-  $('refreshBtn').addEventListener('click', renderTree)
-  $('addBtn').addEventListener('click', function () {
-    var keys = Object.keys(WORKSPACES)
-    var next = keys[(keys.indexOf(state.ws) + 1) % keys.length]
-    state.ws = next; state.expanded = {}; renderTree()
-  })
-  wsSel.addEventListener('change', function () { state.ws = wsSel.value; state.expanded = {}; renderTree() })
+  // ---------- 批量插入所选(文件 → 引用;目录 → 目录树) ----------
+  function insertSelected() {
+    var parts = []
+    flatVisible().forEach(function (e) {
+      if (!state.selected.has(e.rel)) return
+      if (e.type === 'directory') {
+        var text = formatTreeBlock(e)
+        if (text) parts.push(text)
+      } else {
+        parts.push(markerFor(e))
+      }
+    })
+    if (parts.length) appendToComposer(parts.join('\n'))
+    state.selected = new Set()
+    state.selAnchor = null
+    renderTree()
+  }
+  $('selInsert').addEventListener('click', insertSelected)
+  $('selClear').addEventListener('click', function () { state.selected = new Set(); state.selAnchor = null; renderTree() })
 
-  // ---------- 拖放(与真实插件一致) ----------
+  // ---------- 目录树文本(与插件一致:├── 树形、限 3 层、噪声过滤) ----------
+  function formatTreeBlock(entry) {
+    var node = entry.dir
+    var out = []
+    var budget = 200
+    var truncated = false
+    var walk = function (n, prefix, isLast, isRoot, depth) {
+      if (depth > 3) { truncated = true; return }
+      if (isRoot) {
+        out.push(entry.rel + '/')
+      } else {
+        out.push(prefix + (isLast ? '└── ' : '├── ') + n.name + (n.isDir ? '/' : ''))
+        prefix += isLast ? '    ' : '│   '
+      }
+      if (out.length > budget) { truncated = true; return }
+      var kids = []
+      Object.keys(n.dirs || {}).sort().forEach(function (name) {
+        if (!dirHasNoise(n, name)) kids.push({ name: name, isDir: true, dir: n.dirs[name] })
+      })
+      ;(n.files || []).slice().sort(function (a, b) { return a[0].localeCompare(b[0]) })
+        .forEach(function (f) { kids.push({ name: f[0], isDir: false }) })
+      kids.forEach(function (k, i) {
+        if (out.length > budget) { truncated = true; return }
+        walk(k, prefix, i === kids.length - 1, false, depth + 1)
+      })
+    }
+    walk(node, '', true, true, 1)
+    if (truncated) out.push('…')
+    return out.join('\n')
+  }
+
+  // ---------- 拖拽:文件 → 引用;目录 → 目录树文本 ----------
+  function onDragStart(e, entry) {
+    e.dataTransfer.setData('text/plain', entry.type === 'directory' ? entry.name : markerFor(entry))
+    e.dataTransfer.setData('application/x-dsh-ws-file', JSON.stringify({ rel: entry.rel, type: entry.type }))
+    e.dataTransfer.effectAllowed = 'copy'
+    $('dropHintText').textContent = entry.type === 'directory' ? tr('dropHintDir') : tr('dropHint')
+    dropHint.hidden = false
+  }
   document.addEventListener('dragover', function (e) {
     if (!(e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], 'application/x-dsh-ws-file') >= 0)) return
     e.preventDefault()
@@ -439,15 +853,122 @@
   }, true)
   document.addEventListener('drop', function (e) {
     if (!(e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], 'application/x-dsh-ws-file') >= 0)) return
-    var text = e.dataTransfer.getData('text/plain') || ''
+    var raw = e.dataTransfer.getData('application/x-dsh-ws-file') || ''
+    var payload = null
+    try { payload = raw ? JSON.parse(raw) : null } catch (err) { payload = null }
     var ta = composerCard.contains(e.target) ? composer : null
-    if (ta != null) { dropHint.hidden = true; return } // 输入框内:原生光标插入
+    dropHint.hidden = true
+    if (payload && payload.type === 'directory') {
+      // 目录:任意落点都插入目录树文本
+      e.preventDefault(); e.stopPropagation()
+      var entry = null
+      flatVisible().forEach(function (x) { if (x.rel === payload.rel) entry = x })
+      if (!entry) entry = { rel: payload.rel, name: payload.rel.split('/').pop(), type: 'directory', dir: nodeAt(WORKSPACES[state.ws], payload.rel) }
+      if (entry && entry.dir) appendToComposer(formatTreeBlock(entry))
+      return
+    }
+    if (ta != null) { return } // 输入框内:原生光标插入(演示直接追加)
     e.preventDefault()
     e.stopPropagation()
-    dropHint.hidden = true
+    var text = e.dataTransfer.getData('text/plain') || ''
     if (text) { composer.value = composer.value ? composer.value + '\n' + text : text; composer.focus() }
   }, true)
   document.addEventListener('dragend', function () { dropHint.hidden = true })
+
+  // ---------- 分页预览(行翻页,页大小跟随设置) ----------
+  function openPreview(entry) {
+    state.preview = { rel: entry.rel, name: entry.name, page: 0, total: entry.lines || 60 }
+    renderPreview()
+  }
+  function renderPreview() {
+    var p = state.preview
+    if (!p) { $('preview').hidden = true; return }
+    $('preview').hidden = false
+    $('previewName').textContent = p.name
+    var per = state.cfg.peekLines
+    var pages = Math.max(1, Math.ceil(p.total / per))
+    $('previewMeta').textContent = tr('previewPage', { n: p.page + 1 }) + ' / ' + pages + ' · ' + tr('previewLines', { n: p.total })
+    var start = p.page * per
+    var lines = []
+    for (var i = start; i < Math.min(start + per, p.total); i++) {
+      lines.push(String(i + 1).padStart(4, ' ') + '  ' + previewLine(p.name, p.rel, i))
+    }
+    $('previewPre').textContent = lines.join('\n')
+    $('prevPage').disabled = p.page === 0
+    $('nextPage').disabled = p.page >= pages - 1
+  }
+  function previewLine(name, rel, i) {
+    var ext = extOf(name)
+    if (ext === 'json') return i === 0 ? '{' : '  "' + ['name', 'version', 'main', 'scripts', 'deps'][i % 5] + '": ' + (i % 2 ? 'true,' : '"value",')
+    if (ext === 'css') return i === 0 ? '.' + name.replace(/\.[^.]+$/, '') + ' {' : '  ' + ['color', 'margin', 'padding', 'border-radius', 'display'][i % 5] + ': ' + ['#333', '0', '8px', '12px', 'flex'][i % 5] + ';'
+    if (ext === 'md') return i === 0 ? '# ' + name : ['## Section', 'Some **markdown** content here.', '```ts', 'const x = 1', '```'][i % 5]
+    if (ext === 'py') return i === 0 ? 'def ' + name.replace(/\.py$/, '') + '():' : '    ' + ['pass', 'return True', 'print("hi")', 'value = data[i]', 'yield result'][i % 5]
+    if (ext === 'ts' || ext === 'tsx') return i === 0 ? 'export function ' + name.replace(/\.[^.]+$/, '') + '() {' : '  ' + ['const', 'return', 'await', 'if (x) {', '}'][i % 5] + ' ' + ['x = 1', 'result', 'fetchData()', 'console.log(x)', ''][i % 5]
+    return 'line ' + (i + 1) + ' · ' + rel
+  }
+  $('prevPage').addEventListener('click', function () { if (state.preview && state.preview.page > 0) { state.preview.page--; renderPreview() } })
+  $('nextPage').addEventListener('click', function () {
+    if (state.preview) {
+      var pages = Math.max(1, Math.ceil(state.preview.total / state.cfg.peekLines))
+      if (state.preview.page < pages - 1) { state.preview.page++; renderPreview() }
+    }
+  })
+  $('previewRef').addEventListener('click', function () { if (state.preview) insertMarker({ rel: state.preview.rel }) })
+  $('previewContent').addEventListener('click', function () { if (state.preview) appendToComposer('(内容已插入:' + state.preview.name + ' · 演示)') })
+  $('previewClose').addEventListener('click', function () { state.preview = null; renderPreview() })
+
+  // ---------- 搜索过滤 ----------
+  $('filter').addEventListener('input', function () {
+    state.filter = this.value
+    $('filterClear').hidden = state.filter === ''
+    state.selected = new Set(); state.selAnchor = null
+    renderTree()
+  })
+  $('filterClear').addEventListener('click', function () {
+    state.filter = ''; $('filter').value = ''; $('filterClear').hidden = true
+    renderTree()
+  })
+
+  // ---------- 设置页(实时生效) ----------
+  Array.prototype.forEach.call(document.querySelectorAll('.dshwe-switch'), function (btn) {
+    btn.addEventListener('click', function () {
+      var key = btn.getAttribute('data-key')
+      var next = btn.getAttribute('aria-checked') !== 'true'
+      btn.setAttribute('aria-checked', next)
+      if (key === 'hideNoise') { state.cfg.hideNoise = next; state.expanded = {} }
+      if (key === 'showSize') state.cfg.showSize = next
+      renderTree()
+    })
+  })
+  $('setRefSel').addEventListener('change', function () { state.cfg.refStyle = this.value })
+  $('setPeekSel').addEventListener('change', function () {
+    state.cfg.peekLines = Number(this.value)
+    if (state.preview) renderPreview()
+  })
+  $('setWidthSel').addEventListener('change', function () {
+    state.cfg.width = Number(this.value)
+    popup.style.width = state.cfg.width + 'px'
+  })
+  $('setReset').addEventListener('click', function () {
+    state.cfg = { hideNoise: true, showSize: true, refStyle: 'relative', peekLines: 60, width: 384 }
+    $('setRefSel').value = 'relative'; $('setPeekSel').value = '60'; $('setWidthSel').value = '384'
+    Array.prototype.forEach.call(document.querySelectorAll('.dshwe-switch'), function (b) { b.setAttribute('aria-checked', 'true') })
+    popup.style.width = ''
+    state.expanded = {}; state.selected = new Set()
+    renderTree()
+  })
+
+  // ---------- 发送(模拟) ----------
+  $('sendBtn').addEventListener('click', function () {
+    var v = composer.value.trim()
+    if (!v) return
+    var m = document.createElement('div'); m.className = 'demo-msg'
+    var esc = v.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    m.innerHTML = esc.replace(/\[file:/g, '<span class="tag">[file:</span>')
+    var empty = logEl.querySelector('.demo-log-empty'); if (empty) empty.remove()
+    logEl.appendChild(m); logEl.scrollTop = logEl.scrollHeight
+    composer.value = ''
+  })
 
   // ---------- 初始化 ----------
   applyStrings()

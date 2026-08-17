@@ -254,4 +254,5 @@ const { t } = useLocale('dsh-workspace-explorer')   // 命名空间唯一,避免
 - **v0.3.2** — 修复 `webServer.register` 传数组导致路由静默失效;面板改为右上角 dock 式(可拖宽 280–640px)。
 - **v0.4.0** — 面板从 details 列抽屉改为**浮动弹窗**,入口移到会话头部文件树图标;位置实时测量在 header 与 composer 之间;空占位顶掉旧侧边栏按钮;不占用壳的 details 列。
 - **v0.5.0** — **M1 读路径完成**:多选批量插入(Shift/⌘ + 底部操作条)、目录拖拽插入限层紧凑目录树(`/dsh-we/api/tree`)、分页全量预览(peek 支持 offset/limit/whole,≤4MB 整读精确行数、大文件块扫描、二进制 8KB 嗅探);动态版同步(`ws-tree.tree` RPC,>8MB 走 tooLarge 降级)。
+- **v0.5.1** — 会话头部入口升级为**「功能名称 + 图标」胶囊**(对标 DSH 原生 Session log 下载按钮:描边圆角、名称 + 13px 文件夹图标、激活态高亮);原生 + 动态双份同步,新增 `drawer.label` 词典键;演示页重构为当前产品形态并重录 GIF(多选/目录拖拽/分页预览/设置)。
 - **npm 版本同步**:每版同步更新 `package.json` / `dsh.plugin.json` / `manifest.json` / `CHANGELOG.md` 四处。
