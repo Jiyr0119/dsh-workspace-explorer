@@ -148,28 +148,69 @@ npm publish            # 账号开 2FA 时,需输入一次性验证码(OTP)
 
 ## 六、awesome-dsh-plugin 提交流程 / Submission workflow
 
-> ⚠️ **仓库关系(重要,别再搞错)**:真正的上游是 **`awesome-dsh-plugin/awesome-dsh-plugin`**(官方组织,源仓库)。`omdsh-dev/awesome-dsh-plugin` **本身也是一个 fork**(parent 指向官方仓库),不是上游!提交 PR 一律走官方仓库。fork 只认 `Jiyr0119/awesome-dsh-plugin`。
-> ⚠️ **流程更新(2026-08-17)**:上游已**重构**——不再用 `data/plugins/*.yml` + `generate-readme.mjs` 生成,改为**直接编辑 `README.md`(英文)与 `README.zh.md`(中文),在对应分类下各加一行**;CI(build-site.yml)合并后自动重建 site。旧 YAML 流程已废弃。
-> ✅ **已收录**:PR **#1158**(2026-08-16)已合并,条目在官方 README(UI Enhancements)。v0.4.0 描述更新走 **PR #1359**(2026-08-17,OPEN)。
+> ⚠️ **仓库关系(重要,别再搞错)**:真正的上游是 **`awesome-dsh-plugin/awesome-dsh-plugin`**(官方组织,源仓库)。`omdsh-dev/awesome-dsh-plugin` **本身也是一个 fork**(parent 指向官方仓库),不是上游!提交 PR 一律走官方仓库;本地 clone 只认官方 upstream + 自己的 fork `Jiyr0119/awesome-dsh-plugin`。**判断"上游是什么"要用 `gh api repos/<repo> --jq .parent` 核实,别凭 README 或直觉。**
+> ⚠️ **流程(2026-08-17 核实,别再被带偏)**:canonical 上游**没有重构**——README 仍由 **`data/plugins/*.yml` + `node scripts/generate-readme.mjs` 生成**,**禁止手改 README**。PR check 的 CI 步骤 `READMEs match data/plugins` 会校验一致性,手改 README 直接 CI 失败(`generate-readme.mjs --check` 不通过)。
+> ⚠️ **"直接改 README"的教训**:曾把 omdsh-dev fork 的某次重构状态误当成 canonical 现状,按"直接改 README"提了 PR #1359 → CI 失败被关闭。**任何"上游重构"的说法都要在 canonical 仓库上亲自验证**(`git ls-tree upstream/main scripts/` 看有没有 generate-readme.mjs)。
+> ✅ **已收录**:PR **#1158**(2026-08-16,双语)已合并,条目 + 3 张截图在官方仓库。v0.4.0 描述更新走 **PR #1362**(2026-08-17,双语,CI 全绿 CLEAN)。
 
 ### 1. 门槛要求(贡献指南)
 
 - 仓库的 `package.json` 声明 **`dsh.bundle`**(`dsh.bundle.patch` → `cordis.patch.yml`),只声明 `dsh.client` 会被拒。
-- 仓库有真实可用的代码、活跃维护;添加 `dsh-plugin` topic。
+- 仓库有真实可用的代码、活跃维护;添加 `dsh-plugin` topic;repo 年龄 ≥ 1 天、commits ≥ 10。
 - 描述只说功能,不带营销词(superlatives)。
 
-### 2. 提交内容(新流程)
+### 2. 正确流程(先 issue,后 PR)/ The right workflow
 
-- 在 `README.md` 与 `README.zh.md` 的对应分类(本项目:UI Enhancements / 🎨 UI 增强)各加一行:
+**canonical 维护者习惯:先提一个双语 issue 讨论(如 #1142 / #1361),按维护者建议再提双语 PR(#1158 / #1362)。不要跳过 issue 直接提 PR。**
 
-```markdown
-- [Jiyr0119/dsh-workspace-explorer](https://github.com/Jiyr0119/dsh-workspace-explorer) - Standalone workspace file-tree panel for the DSH Web UI: ...; single-purpose, zero-config, one-command install.
+```bash
+# 0) 准备:clone 自己的 fork,加官方 upstream(别加 omdsh-dev!)
+gh repo clone Jiyr0119/awesome-dsh-plugin && cd awesome-dsh-plugin
+git remote add upstream https://github.com/awesome-dsh-plugin/awesome-dsh-plugin.git
+
+# 1) 双语 issue(中英对照,描述改动意图 + 拟更新文案)
+gh issue create --repo awesome-dsh-plugin/awesome-dsh-plugin --title "..." --body-file issue.md
+
+# 2) 从 canonical 最新 tip 建分支(fork 的 main 可能因 shallow clone 历史不相关)
+git fetch upstream main
+git checkout -b feat/xxx upstream/main
+
+# 3) 改 YAML 数据源(README 勿手改!)
+#    data/plugins/Jiyr0119__dsh-workspace-explorer.yml  → description.en / description.zh
+
+# 4) 重新生成 README + 本地跑全部 PR check 步骤
+npm ci
+node scripts/generate-readme.mjs          # 重新生成两个 README
+node scripts/generate-readme.mjs --check  # 校验通过
+npx awesome-lint                          # 应 exit 0(存量 warning 可忽略)
+node scripts/build-site.mjs               # 应 exit 0
+
+# 5) 提交(README.md + README.zh.md + YAML 一起)→ push → 双语 PR
+git add README.md README.zh.md data/plugins/Jiyr0119__dsh-workspace-explorer.yml
+git commit -m "Update ... description to v0.4.0"
+git push origin feat/xxx
+gh pr create --repo awesome-dsh-plugin/awesome-dsh-plugin --base main --head Jiyr0119:feat/xxx \
+  --title "更新 ... 描述至 v0.4.0 / Update ... description to v0.4.0" --body-file pr.md
+
+# 6) 等 CI(~1 分钟内),确认 check SUCCESS + mergeState CLEAN
+gh pr view <num> --repo awesome-dsh-plugin/awesome-dsh-plugin --json statusCheckRollup,mergeStateStatus
 ```
 
-- 描述以句号结尾;含 `: `(英文冒号+空格)时加引号;避免 `[file: ...]` 触发 awesome-lint no-undefined-references。
-- 只改 README 两个文件,**不要手改 site/docs/data**(CI 自动重建)。
+### 3. YAML 条目格式
 
-### 3. 差异化定位(单插件 vs 全家桶)/ Product positioning
+```yaml
+url: https://github.com/Jiyr0119/dsh-workspace-explorer
+name: Jiyr0119/dsh-workspace-explorer
+category: ui
+description:
+  en: 'Standalone workspace file-tree panel for the DSH web UI: ...; single-purpose, zero-config, one-command install.'
+  zh: '独立单功能的工作区文件树面板：...；零配置，一条命令即装即用。'
+```
+
+- 描述以句号结尾;含 `: `(英文冒号+空格)必须加引号;避免裸 `[file: ...]`(awesome-lint no-undefined-references,需转义 `\[file: ...\]`)。
+- 截图在 `data/screenshots.json`(key = 仓库 URL,值 = raw.githubusercontent 图片数组,已收录 3 张)。
+
+### 4. 差异化定位(单插件 vs 全家桶)/ Product positioning
 
 awesome 里大量 UI 插件是**一整套工作台**(如 `omdsh-dev/DSH-better-sidebar`:文件编辑 + 终端 + Git + 子代理全家桶,还有配套的 workspace-search / media-preview 等子插件)。本插件定位要突出**单插件、即插即用**:
 
@@ -177,14 +218,12 @@ awesome 里大量 UI 插件是**一整套工作台**(如 `omdsh-dev/DSH-better-s
 - **即插即用**:`dsh plugin add` 一条命令装完即用,零配置、无构建、不依赖其他插件;原生包自带 host 路由 + 浏览器 bundle。
 - 描述用「standalone / single-purpose / zero-config / one-command」这类事实词,和 better-sidebar 的「full sidebar workbench」形成对比。
 
-### 4. 提交流程
+### 5. 合并冲突与查重
 
-- 更新自己的 fork:`git fetch upstream && git checkout -b feat/xxx upstream/main`(**upstream 必须是官方 `awesome-dsh-plugin/awesome-dsh-plugin`,别用 omdsh-dev**);fork 的 main 可能因 shallow clone 与上游历史不相关,直接基于 `upstream/main` 建分支最干净。
-- 提交 → push 到 fork 分支 → `gh pr create --repo awesome-dsh-plugin/awesome-dsh-plugin --base main --head <owner>:<branch>`。
-- 合并冲突时:README 冲突取 theirs(其他条目优先),把自己的行补回去。
+- 合并冲突时:README 是生成的,冲突通常出现在 YAML 或 README 的相邻条目行——取 theirs(其他条目优先),把自己的行补回去,重新 `generate-readme.mjs`。
 - 提交前用 `gh search prs --repo awesome-dsh-plugin/awesome-dsh-plugin "owner名"` 查是否已有条目/PR,别重复新增(已有条目应走**更新描述**而非新增一行)。
 
-### 5. 收录 ≠ 浏览器自动生效
+### 6. 收录 ≠ 浏览器自动生效
 
 - dsh-market(DSH 内商店)自动同步 awesome 列表;但**商店收录不代表插件装完就有 UI** —— 0.2.0 原生化之前,商店安装只有 host 端、没有浏览器面板。README 要诚实写明当前安装方式的效果。
 
