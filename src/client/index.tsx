@@ -46,6 +46,7 @@ const DICTS: Record<string, Record<string, string>> = {
     'settings.width': '面板宽度', 'settings.width.narrow': '紧凑', 'settings.width.std': '标准', 'settings.width.wide': '宽松',
     'settings.restore': '恢复默认', 'settings.note': '配置在本次会话内生效,重启插件后恢复默认。',
     'settings.nav': '工作区文件',
+    'resize.tip': '拖动调整宽度',
   },
   en: {
     'panel.title': 'Workspace Files', 'ws.current': 'Current dir', 'search.ph': 'Search files (loaded dirs only)…',
@@ -68,6 +69,7 @@ const DICTS: Record<string, Record<string, string>> = {
     'settings.width': 'Panel width', 'settings.width.narrow': 'Narrow', 'settings.width.std': 'Standard', 'settings.width.wide': 'Wide',
     'settings.restore': 'Reset to defaults', 'settings.note': 'Settings apply for this run; they reset when the plugin restarts.',
     'settings.nav': 'Workspace Explorer',
+    'resize.tip': 'Drag to resize',
   },
 }
 
@@ -346,6 +348,22 @@ function Panel(props: {
     void loadDir(root, '')
     Object.keys(expanded).forEach((rel) => { if (rel !== '') void loadDir(root, rel) })
   }
+  // 拖动左边缘调整面板宽度(280–640px)
+  const onResizeStart = (e: React.MouseEvent): void => {
+    e.preventDefault()
+    const startX = e.clientX
+    const startW = c.width
+    const onMove = (ev: MouseEvent): void => {
+      const w = Math.min(640, Math.max(280, Math.round(startW + (startX - ev.clientX))))
+      setCfg({ width: w })
+    }
+    const onUp = (): void => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
   const markerFor = (entry: WsEntry): string => (c.refStyle === 'relative' && root === cwd) ? `[file: ${entry.rel}]` : `[file: ${entry.path}]`
   const insertMarker = (entry: WsEntry): void => { const b = getBridge(); if (b) b.insert(markerFor(entry)) }
 
@@ -519,6 +537,7 @@ function Panel(props: {
 
   return (
     <div className={C('dshwe-panel')} style={{ width: c.width }}>
+      <div className={C('dshwe-resize')} title={tr('resize.tip')} onMouseDown={onResizeStart} />
       <div className={C('dshwe-head')}>
         <span className={C('dshwe-head-ico')}>
           <svg viewBox="0 0 16 16" width={17} height={17} aria-hidden="true"><path d={FOLDER_D} fill="currentColor" /></svg>

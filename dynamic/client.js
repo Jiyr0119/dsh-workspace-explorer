@@ -66,6 +66,7 @@ return {
         'settings.restore': '恢复默认',
         'settings.note': '配置在本次会话内生效,重启插件后恢复默认。',
         'settings.nav': '工作区文件',
+        'resize.tip': '拖动调整宽度',
       },
       en: {
         'panel.title': 'Workspace Files',
@@ -117,6 +118,7 @@ return {
         'settings.restore': 'Reset to defaults',
         'settings.note': 'Settings apply for this run; they reset when the plugin restarts.',
         'settings.nav': 'Workspace Explorer',
+        'resize.tip': 'Drag to resize',
       },
     }
     let tr = (k, vars) => { let s = DICTS.zh[k] || k; if (vars) for (const key in vars) s = s.split('{' + key + '}').join(String(vars[key])); return s }
@@ -142,13 +144,14 @@ return {
     styles.insert(`
 .dshwe-layer { position: fixed; inset: 0; z-index: 100; pointer-events: none; }
 .dshwe-panel {
-  position: absolute; top: 14px; right: 14px; bottom: auto;
-  width: 384px; height: min(640px, calc(100dvh - 110px)); min-height: 320px;
+  position: fixed; top: 0; right: 0; bottom: auto;
+  width: 384px; height: calc(100dvh - 96px); min-height: 320px;
   pointer-events: auto;
   display: flex; flex-direction: column;
   background: var(--dsw-alias-bg-layer-2, #262626);
-  border: 1px solid var(--dsw-alias-border-inverted, rgba(128,128,128,.28));
-  border-radius: 24px;
+  border: 0;
+  border-left: 1px solid var(--dsw-alias-border-inverted, rgba(128,128,128,.28));
+  border-radius: 0 0 0 20px;
   box-shadow: var(--dsw-shadow-lv3, 0 12px 32px rgba(0,0,0,.25));
   color: var(--dsw-alias-label-primary, #e8e8e8);
   font: 13px/1.45 -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
@@ -156,6 +159,11 @@ return {
   --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2, rgba(128,128,128,.4));
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2, rgba(128,128,128,.6));
 }
+.dshwe-resize {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 6px; z-index: 6;
+  cursor: ew-resize; touch-action: none;
+}
+.dshwe-resize:hover { background: var(--dsw-alias-state-business-primary, #4176e6); opacity: .3; }
 .dshwe-head {
   display: flex; align-items: center; gap: 8px; flex: none;
   padding: 14px 16px 12px 18px;
@@ -557,6 +565,23 @@ return {
         Object.keys(expanded).forEach((rel) => { if (rel !== '') loadDir(root, rel) })
       }
 
+      // 拖动左边缘调整面板宽度(280–640px)
+      const onResizeStart = (ev) => {
+        ev.preventDefault()
+        const startX = ev.clientX
+        const startW = c.width
+        const onMove = (me) => {
+          const w = Math.min(640, Math.max(280, Math.round(startW + (startX - me.clientX))))
+          setCfg({ width: w })
+        }
+        const onUp = () => {
+          window.removeEventListener('mousemove', onMove)
+          window.removeEventListener('mouseup', onUp)
+        }
+        window.addEventListener('mousemove', onMove)
+        window.addEventListener('mouseup', onUp)
+      }
+
       const markerFor = (entry) => (c.refStyle === 'relative' && root === cwd) ? '[file: ' + entry.rel + ']' : '[file: ' + entry.path + ']'
 
       const insertMarker = (entry) => {
@@ -733,6 +758,7 @@ return {
       )
 
       return el('div', { className: 'dshwe-panel', style: { width: c.width } },
+        el('div', { className: 'dshwe-resize', title: tr('resize.tip'), onMouseDown: onResizeStart }),
         el('div', { className: 'dshwe-head' },
           el('span', { className: 'dshwe-head-ico' }, headFolderSvg),
           el('div', { className: 'dshwe-title' }, tr('panel.title') + (rootLabel ? ' · ' + rootLabel : '')),

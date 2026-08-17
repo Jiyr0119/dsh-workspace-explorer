@@ -1,5 +1,15 @@
 # Changelog
 
+## [v0.3.2] - 2026-08-17
+
+### 修复 Fix
+
+- **`webServer.register` 传数组导致路由全部静默失效**:真实 `register()` 只接受单个 route,数组被塞进前缀表(key=undefined),`/dsh-we/api/list|peek|config` 全部未注册 → 浏览器 `fetch().json()` 报 `Unexpected end of JSON input`。改为逐条注册(用真实 WebServer 服务验证:三路由全部注册 + list/config/peek 正常)/ `register()` was called with an array, which silently no-oped (routes never registered → empty responses). Now registered one by one and verified against the real WebServer service.
+
+### 交互 Interaction
+
+- 面板改为**右上角 dock 式侧边面板**(对标 dsh-web-ui 右侧面板):贴顶吸边、左边框 + 左阴影、左下圆角;左边缘 6px 拖把可拖宽(280–640px)/ Panel is now a **top-right docked side panel** (dsh-web-ui style): flush to the top-right corner, left edge + shadow, drag handle to resize (280–640px).
+
 ## [v0.3.1] - 2026-08-17
 
 ### 修复 Fix

@@ -13,6 +13,29 @@ cd dsh-workspace-explorer
 #   LICENSE      -> copyright line
 ```
 
+## 0.5 发布前必做验证(血泪教训)/ Mandatory pre-publish verification
+
+> 2026-08 教训:0.3.0/0.3.1 两次真实安装后崩/坏 —— `cordis.patch.yml` 的 `@` 作用域包名未加引号导致 `dsh web` 启动解析补丁崩溃;`webServer.register` 传入数组导致路由全部静默失效(浏览器报 `Unexpected end of JSON input`)。**发布前必须做下面三步,缺一不可。**
+
+```bash
+# 1) 构建 / build
+npm run build
+
+# 2) 补丁解析回归:临时 profile 装一次,跑崩溃路径(组合解析)
+dsh plugin --profile preflight add -w "file:$(pwd)"
+dsh --profile preflight --dump-config >/dev/null && echo OK
+rm -rf "$HOME/.dsh/profiles/preflight"
+
+# 3) Host 路由功能验证:真实 webServer 服务 + 全部 /dsh-we/api/* 路由
+#    (见仓库 .wecheck 系列临时脚本:list / config / peek / bad-rel 校验)
+
+# 4) 真实挂载确认(浏览器):装进真实 web profile 并重启 dsh web
+#    dsh plugin --profile web add -w @jiyr0119/dsh-workspace-explorer@latest
+#    重启后侧边栏底部出现 📁 文件按钮,面板可展开目录 / 拖拽插入 / 设置生效
+```
+
+注意:现代 pnpm(9/10)在 workspace root 直接 `add` 会报 `ERR_PNPM_ADDING_TO_ROOT`,命令必须带 `-w`(或在 profile 的 `.npmrc` 写 `ignore-workspace-root-check=true`)。
+
 ## 1. 用命令行创建仓库(需要 GitHub CLI)Create the repo with the CLI (requires gh)
 
 ```bash
@@ -52,6 +75,10 @@ git push origin v0.1.0
 ## 3. 之后怎么迭代 Subsequent iterations
 
 ```bash
+# 每次发布前:验证(见 §0.5)→ bump 版本 → 构建 → 发布
+npm version patch -m "chore: v0.3.x"     # 或手动改 package.json / dsh.plugin.json / manifest.json
+npm run build
+npm publish                              # 账号开 2FA 时需输入一次性验证码(OTP)
 git add .
 git commit -m "feat: ..."        # 提交变更 / commit changes
 git push                          # 推送到 main / push

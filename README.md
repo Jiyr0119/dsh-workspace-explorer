@@ -33,7 +33,7 @@ Inspired by the VS Code / Cursor project tree, filling the gap of a missing dire
 
 ## Features
 
-- 📂 **Right-side floating panel** — shows the file tree of the current workspace (session cwd); switch workspaces from the dropdown, or register any folder with `+`
+- 📂 **Right-docked top panel** — a dsh-web-ui-style side panel pinned to the top-right corner: browse the current workspace (session cwd) file tree, switch workspaces from the dropdown, register folders with `+`, drag the left edge to resize (280–640px)
 - 🗂 **Top tab bar** — click at the top of the panel to switch between Files and Settings; the Settings page tunes behavior live (hide noise dirs, show sizes, reference format, preview lines, panel width) and mirrors into DSH Settings → Workspace Explorer
 - 🗂 **Lazy-loading tree** — directories load on demand; noise dirs (`node_modules`, `.git`, `dist`, `__pycache__`, …) are hidden automatically
 - 🎨 **File-type icons** — filled, color-coded document badges per extension (TS / JS / Python / JSON / Markdown / image / config / shell, …); amber folders that brighten when expanded

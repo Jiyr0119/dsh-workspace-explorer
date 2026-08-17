@@ -36,8 +36,7 @@ export interface WsEntry {
 declare module 'cordis' {
   interface Context {
     webServer: {
-      register(route: { kind: 'exact' | 'prefix'; path: string; handler: (req: WsHttpRequest, res: WsHttpResponse) => void | Promise<void> }): void
-      register(route: Array<{ kind: 'exact' | 'prefix'; path: string; handler: (req: WsHttpRequest, res: WsHttpResponse) => void | Promise<void> }>): void
+      register(route: { kind: 'exact' | 'prefix'; path: string; handler: (req: WsHttpRequest, res: WsHttpResponse) => void | Promise<void> }): () => void
     }
   }
 }
@@ -89,7 +88,7 @@ async function listDir(abs: string, baseRel: string): Promise<{ entries: WsEntry
 export default {
   inject: ['webServer'],
   apply(ctx: Context) {
-    ctx.webServer.register([
+    const routes: Array<{ kind: 'exact' | 'prefix'; path: string; handler: (req: WsHttpRequest, res: WsHttpResponse) => void | Promise<void> }> = [
       {
         kind: 'exact',
         path: '/dsh-we/api/config',
@@ -146,6 +145,8 @@ export default {
           }
         },
       },
-    ])
+    ]
+    // 真实 webServer.register 只接受单个 route(数组会被静默塞进前缀表导致路由失效)
+    for (const route of routes) ctx.webServer.register(route)
   },
 }
