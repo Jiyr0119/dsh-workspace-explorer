@@ -47,6 +47,7 @@ const DICTS: Record<string, Record<string, string>> = {
     'settings.restore': '恢复默认', 'settings.note': '配置在本次会话内生效,重启插件后恢复默认。',
     'settings.nav': '工作区文件',
     'resize.tip': '拖动调整宽度',
+    'drawer.tip': '文件目录', 'drawer.open': '打开文件抽屉', 
   },
   en: {
     'panel.title': 'Workspace Files', 'ws.current': 'Current dir', 'search.ph': 'Search files (loaded dirs only)…',
@@ -70,6 +71,7 @@ const DICTS: Record<string, Record<string, string>> = {
     'settings.restore': 'Reset to defaults', 'settings.note': 'Settings apply for this run; they reset when the plugin restarts.',
     'settings.nav': 'Workspace Explorer',
     'resize.tip': 'Drag to resize',
+    'drawer.tip': 'Files', 'drawer.open': 'Open files drawer', 
   },
 }
 
@@ -80,6 +82,10 @@ interface LocaleLike {
 
 // ---------- 图标 ----------
 const FOLDER_D = 'M1.5 2.5A1.5 1.5 0 0 1 3 1h3.2l1.6 2H13a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 13 13H3a1.5 1.5 0 0 1-1.5-1.5v-9z'
+// 文件树图标:顶部文件夹 + 向下的树状分支线(16x16)
+const FOLDER_TREE_D = 'M2.5 3.6A1.6 1.6 0 0 1 4.1 2h1.9l1 1.5h5.4A1.6 1.6 0 0 1 14 5.1v3.3H2.5z'
+const TREE_LINE_D = 'M4.5 8.4v5.4M4.5 9.8h3.2M6.2 9.8v1.6M4.5 11.8h5M7.4 11.8v1.6'
+// Harness 原生 hHd-Xa_panelIcon 对应的 IconPanelLeftOutline16 path
 const DOC_BODY = 'M4.3 1.7h5.3l2.7 2.7v8.9a1 1 0 0 1-1 1H4.3a1 1 0 0 1-1-1V2.7a1 1 0 0 1 1-1z'
 const DOC_FOLD = 'M9.6 1.7L12.3 4.4H9.6z'
 const GEAR_D = 'M8 9.9a1.9 1.9 0 1 1 0-3.8 1.9 1.9 0 0 1 0 3.8zM8 4.3V2.9M8 13.1v-1.4M4.3 8H2.9M13.1 8h-1.4M5.2 5.2L4.1 4.1M11.9 11.9l-1.1-1.1M5.2 10.8L4.1 11.9M11.9 4.1l-1.1 1.1'
@@ -187,20 +193,35 @@ let open = false
 const getOpen = (): boolean => open
 const setOpen = (v: boolean): void => { open = v; openListeners.forEach((fn) => fn(open)) }
 const subscribeOpen = (fn: (v: boolean) => void): (() => void) => { openListeners.add(fn); return () => { openListeners.delete(fn) } }
+// 打开/关闭右侧文件弹窗(纯 UI 状态,不驱动壳的 details 列)
+const toggleDrawer = (): void => { setOpen(!getOpen()) }
+// 关闭弹窗
+const closeDrawer = (): void => { setOpen(false) }
+
+// 动态测量弹窗区域:顶部 = 会话 header 底部,底部 = 输入框(composer)顶部
+// 即"对话框上方、顶部下方"这段区域,窗口/header/composer 变化时实时更新
+const measurePopup = (): { top: number; height: number } => {
+  const vh = window.innerHeight
+  const header = document.querySelector('[data-slot="conversation.session.header"]')
+  const composer = document.querySelector('[data-composer-card]')
+  const top = header ? Math.round(header.getBoundingClientRect().bottom) + 8 : 48
+  const bottomLimit = composer ? Math.round(composer.getBoundingClientRect().top) - 8 : vh - 48
+  return { top, height: Math.max(200, bottomLimit - top) }
+}
 
 let bridge: { insert(text: string): void } | null = null
 const setBridge = (b: { insert(text: string): void } | null): void => { bridge = b }
 const getBridge = () => bridge
 
-// ---------- 侧边栏开关按钮 ----------
-function SidebarAction(props: { wide?: boolean }) {
-  const [on, setOnState] = useState(getOpen())
-  useEffect(() => subscribeOpen(setOnState), [])
+// ---------- 会话头部工具区按钮(与 session log 同排) ----------
+function HeaderAction() {
   return (
-    <button type="button" className={C('dshwe-act') + (on ? ` ${C('dshwe-act-on')}` : '')}
-      onClick={() => setOpen(!getOpen())} title={tr('sidebar.tooltip')} aria-label={tr('sidebar.tooltip')} aria-pressed={on}>
-      <svg viewBox="0 0 16 16" width={16} height={16} aria-hidden="true"><path d={FOLDER_D} fill="currentColor" /></svg>
-      {props.wide === true ? <span>{tr('sidebar.label')}</span> : null}
+    <button type="button" className={C('dshwe-hicon')}
+      onClick={toggleDrawer} title={tr('drawer.open')} aria-label={tr('drawer.open')}>
+      <svg viewBox="0 0 16 16" width={16} height={16} aria-hidden="true">
+        <path d={FOLDER_TREE_D} fill="currentColor" />
+        <path d={TREE_LINE_D} fill="none" stroke="currentColor" strokeWidth={1.3} strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
     </button>
   )
 }
@@ -347,22 +368,6 @@ function Panel(props: {
     if (root === null) return
     void loadDir(root, '')
     Object.keys(expanded).forEach((rel) => { if (rel !== '') void loadDir(root, rel) })
-  }
-  // 拖动左边缘调整面板宽度(280–640px)
-  const onResizeStart = (e: React.MouseEvent): void => {
-    e.preventDefault()
-    const startX = e.clientX
-    const startW = c.width
-    const onMove = (ev: MouseEvent): void => {
-      const w = Math.min(640, Math.max(280, Math.round(startW + (startX - ev.clientX))))
-      setCfg({ width: w })
-    }
-    const onUp = (): void => {
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
-    }
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
   }
   const markerFor = (entry: WsEntry): string => (c.refStyle === 'relative' && root === cwd) ? `[file: ${entry.rel}]` : `[file: ${entry.path}]`
   const insertMarker = (entry: WsEntry): void => { const b = getBridge(); if (b) b.insert(markerFor(entry)) }
@@ -536,8 +541,7 @@ function Panel(props: {
   )
 
   return (
-    <div className={C('dshwe-panel')} style={{ width: c.width }}>
-      <div className={C('dshwe-resize')} title={tr('resize.tip')} onMouseDown={onResizeStart} />
+    <div className={C('dshwe-panel')}>
       <div className={C('dshwe-head')}>
         <span className={C('dshwe-head-ico')}>
           <svg viewBox="0 0 16 16" width={17} height={17} aria-hidden="true"><path d={FOLDER_D} fill="currentColor" /></svg>
@@ -546,7 +550,7 @@ function Panel(props: {
         <button type="button" className={C('dshwe-icobtn')} onClick={refresh} title={tr('refresh')} aria-label={tr('refresh')}>
           <svg viewBox="0 0 16 16" width={14} height={14} aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.61-3.89M13.5 1.5v3h-3" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" /></svg>
         </button>
-        <button type="button" className={C('dshwe-icobtn')} onClick={() => setOpen(false)} title={tr('close')} aria-label={tr('close')}>
+        <button type="button" className={C('dshwe-icobtn')} onClick={closeDrawer} title={tr('close')} aria-label={tr('close')}>
           <svg viewBox="0 0 16 16" width={14} height={14} aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" /></svg>
         </button>
       </div>
@@ -567,15 +571,37 @@ function Panel(props: {
   )
 }
 
-// ---------- 浮层入口:面板 + 拖拽提示 + 拖放处理 ----------
-function OverlayEntry(props: {
+// ---------- 弹窗根:浮动面板,位于顶部 header 与输入框之间,带展开/收起动画 ----------
+function DrawerRoot(props: {
   useWorkspaces: (s: unknown) => unknown
   useSessions: (s: unknown) => unknown
 }) {
-  const [on, setOnState] = useState(getOpen())
+  const [on, setOn] = useState(getOpen())
+  const [shown, setShown] = useState(false)
+  const [rect, setRect] = useState({ top: 48, height: 480 })
   const [dragging, setDragging] = useState(false)
-  useEffect(() => subscribeOpen(setOnState), [])
-
+  useEffect(() => subscribeOpen(setOn), [])
+  // 打开时先挂载再置 shown,触发 CSS 过渡动画
+  useEffect(() => {
+    if (on) {
+      setShown(false)
+      const raf = requestAnimationFrame(() => setShown(true))
+      return () => cancelAnimationFrame(raf)
+    }
+    setShown(false)
+  }, [on])
+  // 动态测量弹窗区域:header 底部 → composer 顶部;窗口尺寸/布局变化时实时更新
+  useEffect(() => {
+    const update = (): void => setRect(measurePopup())
+    update()
+    const ro = new ResizeObserver(update)
+    const header = document.querySelector('[data-slot="conversation.session.header"]')
+    const composer = document.querySelector('[data-composer-card]')
+    if (header) ro.observe(header)
+    if (composer) ro.observe(composer)
+    window.addEventListener('resize', update)
+    return () => { ro.disconnect(); window.removeEventListener('resize', update) }
+  }, [])
   useEffect(() => {
     const hasMarker = (e: DragEvent): boolean => !!e.dataTransfer && Array.from(e.dataTransfer.types ?? []).includes(MARKER)
     const onDragOver = (e: DragEvent): void => { if (!hasMarker(e)) return; e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy' }
@@ -583,10 +609,9 @@ function OverlayEntry(props: {
       if (!hasMarker(e)) return
       const markerText = e.dataTransfer?.getData('text/plain') ?? ''
       const target = e.target instanceof HTMLElement ? e.target : null
-      const ta = target ? target.closest('[data-composer-card] textarea') : null
-      if (ta != null) { setDragging(false); return }
+      if (target?.closest('[data-composer-card] textarea')) { setDragging(false); return }
       e.preventDefault(); e.stopPropagation(); setDragging(false)
-      if (markerText !== '') { const b = getBridge(); if (b) b.insert(markerText) }
+      if (markerText !== '') getBridge()?.insert(markerText)
     }
     const onDragEnd = (): void => setDragging(false)
     document.addEventListener('dragover', onDragOver, true)
@@ -598,18 +623,10 @@ function OverlayEntry(props: {
       document.removeEventListener('dragend', onDragEnd)
     }
   }, [])
-
   return (
     <div className={C('dshwe-layer')}>
-      {dragging ? (
-        <div className={C('dshwe-hint')}>
-          <div className={C('dshwe-hint-chip')}>
-            <svg viewBox="0 0 16 16" width={16} height={16} aria-hidden="true"><path d="M8 3.5v6M5.7 7.2L8 9.5l2.3-2.3M3.5 12.5h9" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" /></svg>
-            {tr('drop.hint')}
-          </div>
-        </div>
-      ) : null}
-      {on ? <Panel {...props} onDraggingChange={setDragging} /> : null}
+      {dragging ? <div className={C('dshwe-hint')}><div className={C('dshwe-hint-chip')}><svg viewBox="0 0 16 16" width={16} height={16} aria-hidden="true"><path d="M8 3.5v6M5.7 7.2L8 9.5l2.3-2.3M3.5 12.5h9" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" /></svg>{tr('drop.hint')}</div></div> : null}
+      {on ? <div className={C('dshwe-popup') + (shown ? ` ${C('dshwe-popup-on')}` : '')} style={{ top: rect.top, height: rect.height }}><Panel {...props} onDraggingChange={setDragging} /></div> : null}
     </div>
   )
 }
@@ -655,13 +672,18 @@ export function apply(ctx: CtxLike): void {
     }
   }
 
+  slots.inject('conversation.session.header.utilities', () => slots.register(
+    { name: 'conversation.session.header.utilities', id: 'workspace-explorer-drawer', order: 20, label: () => tr('drawer.tip') },
+    () => <HeaderAction />,
+  ))
+  // 占位注册:顶掉旧版原生包在侧边栏底部的「文件」按钮(用户要求仅保留会话头部入口)
   slots.inject('sidebar.footer.action', () => slots.register(
     { name: 'sidebar.footer.action', id: 'workspace-explorer' },
-    (props: never) => <SidebarAction {...(props as { wide?: boolean })} />,
+    () => null,
   ))
   slots.inject('shell.overlay', () => slots.register(
     { name: 'shell.overlay', id: 'workspace-explorer-panel' },
-    (props: never) => <OverlayEntry {...(props as { useWorkspaces: (s: unknown) => unknown; useSessions: (s: unknown) => unknown })} />,
+    (props: never) => <DrawerRoot {...(props as { useWorkspaces: (s: unknown) => unknown; useSessions: (s: unknown) => unknown })} />,
   ))
   slots.inject('conversation.input.dock', () => slots.register(
     { name: 'conversation.input.dock', id: 'workspace-explorer-bridge' },

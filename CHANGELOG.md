@@ -1,5 +1,20 @@
 # Changelog
 
+## [v0.4.0] - 2026-08-17
+
+### 交互重构 Interaction overhaul (popup + file-tree entry)
+
+- 面板从「details 列抽屉」改为**浮动弹窗**:由会话头部(与 session log 同排)的**文件树图标**打开,带淡入/缩放展开动画 / Panel is now a **floating popup** opened by a **file-tree icon** in the session header (beside the session log), with a fade/scale-in animation.
+- **弹窗位置实时测量**:位于会话头部底部与输入框(composer)顶部之间,绝不遮挡输入框;窗口缩放、header/composer 布局变化时自动跟随 / **Live-measured position** between the session header and the composer; follows window & layout changes automatically.
+- 移除 `sidebar.footer.action` 侧边栏按钮(以空占位注册顶掉旧版原生包残留按钮),唯一入口为会话头部图标 / The sidebar footer button was removed (placeholder registration supersedes the legacy native bundle's button); the session-header icon is the single entry.
+- 不再依赖壳的 `layout.openDetails/closeDetails` 与 details 列,避免抢占壳的「工具调用详情」功能 / No longer drives the shell's details column (`layout.openDetails/closeDetails`), so the shell's tool-details panel stays untouched.
+
+### 修复 Fix
+
+- 保留 v0.3.2 的 `webServer.register` 逐条注册修复与 v0.3.1 的 `cordis.patch.yml` 引号修复(原生安装路径) / Kept the v0.3.2 per-route `webServer.register` fix and the v0.3.1 quoted `cordis.patch.yml` fix (native install path).
+- `DockBridge` 对 `useInput` 空值守卫,避免输入桥崩溃 / `DockBridge` guards a missing `useInput` prop.
+- 弹窗动画尊重 `prefers-reduced-motion` / Popup animation respects `prefers-reduced-motion`.
+
 ## [v0.3.2] - 2026-08-17
 
 ### 修复 Fix

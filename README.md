@@ -8,7 +8,7 @@
 [![Pages](https://img.shields.io/github/actions/workflow/status/Jiyr0119/dsh-workspace-explorer/pages.yml?label=pages%20deploy)](https://Jiyr0119.github.io/dsh-workspace-explorer/)
 [![Last commit](https://img.shields.io/github/last-commit/Jiyr0119/dsh-workspace-explorer)](https://github.com/Jiyr0119/dsh-workspace-explorer)
 
-> A workspace file explorer for the DeepSeek Harness Web UI: a right-side panel showing the current workspace's directory tree — click or drag a file to send its reference to the model.
+> A workspace file explorer for the DeepSeek Harness Web UI: a **file-tree button in the session header** opens an animated popup showing the current workspace's directory tree — click or drag a file to send its reference to the model.
 
 Inspired by the VS Code / Cursor project tree, filling the gap of a missing directory view in DSH after workspaces are added.
 
@@ -33,13 +33,13 @@ Inspired by the VS Code / Cursor project tree, filling the gap of a missing dire
 
 ## Features
 
-- 📂 **Right-docked top panel** — a dsh-web-ui-style side panel pinned to the top-right corner: browse the current workspace (session cwd) file tree, switch workspaces from the dropdown, register folders with `+`, drag the left edge to resize (280–640px)
+- 📂 **Animated popup** — a **file-tree icon** in the session header (beside the session log button) opens a floating panel with a spring-like fade/scale-in animation; the popup is measured live to sit **between the session header and the composer** (the chat area's right side), so it never covers the input box
 - 🗂 **Top tab bar** — click at the top of the panel to switch between Files and Settings; the Settings page tunes behavior live (hide noise dirs, show sizes, reference format, preview lines, panel width) and mirrors into DSH Settings → Workspace Explorer
 - 🗂 **Lazy-loading tree** — directories load on demand; noise dirs (`node_modules`, `.git`, `dist`, `__pycache__`, …) are hidden automatically
 - 🎨 **File-type icons** — filled, color-coded document badges per extension (TS / JS / Python / JSON / Markdown / image / config / shell, …); amber folders that brighten when expanded
 - 🖱 **Click to insert** — click a file row to append a `[file: relative-path]` reference to the composer; after sending, the model resolves it with its `read` tool
 - 🖱 **Drag & drop** — drop a file into the composer to insert at the caret (fullscreen dashed hint); dropping elsewhere appends to the end
-- 🌓 **Theme-aware** — built entirely on DSH's `--dsw-alias-*` design tokens; adapts to light/dark with a native dialog look (24px radius, lv3 shadow, l3 header rule)
+- 🌓 **Theme-aware** — built entirely on DSH's `--dsw-alias-*` design tokens; adapts to light/dark with a native dialog look (16px radius, lv3 shadow)
 - 🔍 **Search & filter** — filter files by name across loaded directories (flat result list with a match count)
 - 👁 **Inline preview** — peek the first 60 lines of any text file; insert the reference, or paste the full content for small files (≤ 32 KB)
 - 🌐 **i18n** — zh/en dictionaries registered through DSH's locale service; the panel follows the DSH UI language
@@ -55,13 +55,13 @@ A *dynamic Cordis plugin*: no build step, no config changes.
 2. Paste the whole [`dynamic/host.js`](./dynamic/host.js) into **Host code**.
 3. Paste the whole [`dynamic/client.js`](./dynamic/client.js) into **Client code**.
 4. `cordis_run` to activate; authorize on the Run card when it first appears.
-5. Click the 📁 **Files** button at the bottom of the sidebar → expand directories → click a file, or drag it into the composer, then send.
+5. Click the 🌲 **file-tree icon** in the session header → expand directories → click a file, or drag it into the composer, then send.
 
 **Way 2 · npm source package**
 `npm install @jiyr0119/dsh-workspace-explorer` — the package ships `dynamic/host.js` / `dynamic/client.js` for the Way-1 paste flow, with semver releases.
 
-**Way 3 · Storefront (`dsh plugin add` / dsh-market) — native install (v0.3.0)**
-`dsh plugin --profile web add -w @jiyr0119/dsh-workspace-explorer@latest` (or the market one-click button). The package ships a native host half (`lib/index.js`, webServer JSON routes incl. `/dsh-we/api/config`) **and** a browser bundle (`lib/client.js` via `dsh.plugin.json`) with the full interaction — top tab bar (Files / Settings) + a live settings page. The 0.3.0 build passes; last-mile verification against a real DSH mount is pending (see [`docs/native-package.md`](./docs/native-package.md)). The dynamic paste flow (Way 1) remains the zero-build option.
+**Way 3 · Storefront (`dsh plugin add` / dsh-market) — native install (v0.4.0)**
+`dsh plugin --profile web add -w @jiyr0119/dsh-workspace-explorer@latest` (or the market one-click button). The package ships a native host half (`lib/index.js`, webServer JSON routes incl. `/dsh-we/api/config`) **and** a browser bundle (`lib/client.js` via `dsh.plugin.json`) with the full interaction — animated popup from the session-header file-tree icon + a live settings page. The build passes typecheck and the tsdown bundle; the dynamic paste flow (Way 1) remains the zero-build option.
 
 > ℹ️ **pnpm note**: modern pnpm (9/10) refuses to add a dependency at the workspace root (`ERR_PNPM_ADDING_TO_ROOT`), hence the `-w` flag above. Alternative: create `~/.dsh/profiles/web/.npmrc` containing `ignore-workspace-root-check=true`.
 
@@ -71,10 +71,10 @@ See [`docs/install.md`](./docs/install.md) for details.
 
 ### Usage
 
-1. Click the 📁 "Files" button at the bottom of the sidebar to open the panel.
+1. Click the 🌲 **file-tree icon** at the top of the session header (right side, beside the session log button) to open the popup.
 2. Expand directories to browse files.
 3. Click a file, or drag it into the composer, then send.
-4. Use the **Settings** tab at the top of the panel (or DSH Settings → Workspace Explorer) to adjust panel behavior.
+4. Use the **Settings** tab at the top of the popup (or DSH Settings → Workspace Explorer) to adjust panel behavior.
 
 ## Project Structure
 
@@ -96,9 +96,14 @@ dsh-workspace-explorer/
 │   ├── install.md        # Install guide
 │   ├── native-package.md # Native DSH package roadmap (upstream PR sketch)
 │   └── publish.md        # Publishing workflow (GitHub + npm)
-└── src/
-    ├── host.js           # Host half: fs listing + ws-tree.list RPC
-    └── client.js         # Client half: panel + icons + drag & drop
+├── src/
+│   ├── index.ts          # Native host half: webServer JSON routes (/dsh-we/api/*)
+│   └── client/
+│       └── index.tsx     # Native client half: popup + tree + icons + drag & drop
+├── dynamic/
+│   ├── host.js           # Dynamic paste host half: fs listing + ws-tree.* RPC
+│   └── client.js         # Dynamic paste client half: popup + tree + icons
+└── lib/                  # Built artifacts (lib/index.js + lib/client.js)
 ```
 
 ## Implementation Notes
@@ -107,15 +112,15 @@ dsh-workspace-explorer/
 |---|---|
 | Directory listing | Host `fs.resolve` / `fs.listDir` |
 | Host→Client RPC | `harness.handle('ws-tree.list' / 'ws-tree.peek')` ↔ `host.call(...)` |
-| Panel | `shell.overlay` slot (`useWorkspaces` / `useSessions`) |
-| Toggle button | `sidebar.footer.action` slot |
+| Popup | `shell.overlay` slot (`useWorkspaces` / `useSessions`), position measured between session header & composer |
+| Toggle button | `conversation.session.header.utilities` slot (file-tree icon) |
 | Composer write | `conversation.input.dock` → `inputActions.setDraft` |
 | Drag & drop | HTML5 DnD; native caret insert in the textarea, append elsewhere |
 | Theming | `--dsw-alias-*` CSS variables (light/dark) |
 
 ## Version
 
-Current version **v0.3** — top tab bar (Files / Settings) + live settings page; features and visuals aligned with DSH's native UI.
+Current version **v0.4.0** — animated popup opened from a session-header file-tree icon, positioned between the header and the composer; full feature set (tree, search, preview, click/drag references, settings, i18n).
 See [CHANGELOG.md](./CHANGELOG.md) for release notes.
 
 ## Roadmap

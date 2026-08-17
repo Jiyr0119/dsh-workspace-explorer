@@ -1,6 +1,6 @@
 {
   "id": "dsh-external/dsh-workspace-explorer",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "main": "./lib/index.js",
   "description": "工作区文件资源管理器:右侧面板展示目录树,点击/拖拽插入文件引用,含搜索/预览/国际化。Workspace file explorer panel with click/drag references, search, preview, i18n.",
   "engines": {

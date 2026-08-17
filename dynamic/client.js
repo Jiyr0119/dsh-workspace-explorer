@@ -67,6 +67,8 @@ return {
         'settings.note': '配置在本次会话内生效,重启插件后恢复默认。',
         'settings.nav': '工作区文件',
         'resize.tip': '拖动调整宽度',
+        'drawer.tip': '文件目录',
+        'drawer.open': '打开文件浏览',
       },
       en: {
         'panel.title': 'Workspace Files',
@@ -119,6 +121,8 @@ return {
         'settings.note': 'Settings apply for this run; they reset when the plugin restarts.',
         'settings.nav': 'Workspace Explorer',
         'resize.tip': 'Drag to resize',
+        'drawer.tip': 'Files',
+        'drawer.open': 'Open file explorer',
       },
     }
     let tr = (k, vars) => { let s = DICTS.zh[k] || k; if (vars) for (const key in vars) s = s.split('{' + key + '}').join(String(vars[key])); return s }
@@ -143,6 +147,41 @@ return {
 
     styles.insert(`
 .dshwe-layer { position: fixed; inset: 0; z-index: 100; pointer-events: none; }
+.dshwe-popup {
+  position: fixed; right: 16px;
+  display: flex; flex-direction: column;
+  width: 384px;
+  background: var(--dsw-alias-bg-layer-2, #262626);
+  border: 1px solid var(--dsw-alias-border-inverted, rgba(128,128,128,.28));
+  border-radius: 16px;
+  box-shadow: var(--dsw-shadow-lv3, 0 12px 32px rgba(0,0,0,.35));
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary, #e8e8e8);
+  font: 13px/1.45 -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2, rgba(128,128,128,.4));
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2, rgba(128,128,128,.6));
+  pointer-events: auto;
+  opacity: 0;
+  transform: translateY(-8px) scale(.98);
+  transform-origin: top right;
+  transition: opacity .18s ease, transform .18s ease;
+}
+.dshwe-popup-on { opacity: 1; transform: translateY(0) scale(1); }
+@media (prefers-reduced-motion: reduce) { .dshwe-popup { transition: none } }
+.dshwe-popup .dshwe-panel {
+  position: static; top: auto; right: auto; bottom: auto;
+  width: auto; height: auto; min-height: 0;
+  flex: 1;
+  border: 0; border-left: 0; border-radius: 0; box-shadow: none;
+  pointer-events: auto;
+}
+.dshwe-hicon {
+  border: 0; background: transparent; color: var(--dsw-alias-label-secondary, #9a9a9a);
+  width: 30px; height: 30px; border-radius: 8px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+}
+.dshwe-hicon:hover { background: var(--dsw-alias-interactive-bg-hover, rgba(128,128,128,.12)); color: var(--dsw-alias-label-primary, #e8e8e8); }
+.dshwe-hicon-on { color: var(--dsw-alias-state-business-primary, #4176e6); }
 .dshwe-panel {
   position: fixed; top: 0; right: 0; bottom: auto;
   width: 384px; height: calc(100dvh - 96px); min-height: 320px;
@@ -332,6 +371,22 @@ return {
     const setOpen = (v) => { open = v; openListeners.forEach((fn) => fn(open)) }
     const subscribeOpen = (fn) => { openListeners.add(fn); return () => { openListeners.delete(fn) } }
 
+    // 打开/关闭右侧文件弹窗(纯 UI 状态,不驱动壳的 details 列)
+    const toggleDrawer = () => setOpen(!getOpen())
+    // 关闭弹窗
+    const closeDrawer = () => setOpen(false)
+
+    // 动态测量弹窗区域:顶部 = 会话 header 底部,底部 = 输入框(composer)顶部
+    // 即"对话框上方、顶部下方"这段区域,窗口/header/composer 变化时实时更新
+    const measurePopup = () => {
+      const vh = window.innerHeight
+      const header = document.querySelector('[data-slot="conversation.session.header"]')
+      const composer = document.querySelector('[data-composer-card]')
+      const top = header ? Math.round(header.getBoundingClientRect().bottom) + 8 : 48
+      const bottomLimit = composer ? Math.round(composer.getBoundingClientRect().top) - 8 : vh - 48
+      return { top, height: Math.max(200, bottomLimit - top) }
+    }
+
     // ---- 输入桥:由 conversation.input.dock 槽位捕获 inputActions ----
     let bridge = null
     const setBridge = (b) => { bridge = b }
@@ -348,6 +403,9 @@ return {
 
     // ---- 图标系统 ----
     const FOLDER_D = 'M1.5 2.5A1.5 1.5 0 0 1 3 1h3.2l1.6 2H13a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 13 13H3a1.5 1.5 0 0 1-1.5-1.5v-9z'
+    // 文件树图标:顶部文件夹 + 向下的树状分支线(16x16)
+    const FOLDER_TREE_D = 'M2.5 3.6A1.6 1.6 0 0 1 4.1 2h1.9l1 1.5h5.4A1.6 1.6 0 0 1 14 5.1v3.3H2.5z'
+    const TREE_LINE_D = 'M4.5 8.4v5.4M4.5 9.8h3.2M6.2 9.8v1.6M4.5 11.8h5M7.4 11.8v1.6'
     const DOC_BODY = 'M4.3 1.7h5.3l2.7 2.7v8.9a1 1 0 0 1-1 1H4.3a1 1 0 0 1-1-1V2.7a1 1 0 0 1 1-1z'
     const DOC_FOLD = 'M9.6 1.7L12.3 4.4H9.6z'
     const GLYPHS = {
@@ -408,31 +466,30 @@ return {
     const dropSvg = el('svg', { viewBox: '0 0 16 16', width: 16, height: 16, 'aria-hidden': true },
       el('path', { d: 'M8 3.5v6M5.7 7.2L8 9.5l2.3-2.3M3.5 12.5h9', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round' }))
 
-    // ---- 侧边栏底部开关按钮 ----
-    function SidebarAction(props) {
-      const [on, setOn] = React.useState(getOpen())
-      React.useEffect(() => subscribeOpen(setOn), [])
-      const wide = props.wide === true
+    // ---- 会话头部工具区按钮(与 session log 同排) ----
+    function HeaderAction(props) {
       return el('button', {
         type: 'button',
-        className: 'dshwe-act' + (on ? ' dshwe-act-on' : ''),
-        onClick: () => setOpen(!getOpen()),
-        title: tr('sidebar.tooltip'),
-        'aria-label': tr('sidebar.tooltip'),
-        'aria-pressed': on,
+        className: 'dshwe-hicon',
+        onClick: toggleDrawer,
+        title: tr('drawer.open'),
+        'aria-label': tr('drawer.open'),
       },
         el('svg', { viewBox: '0 0 16 16', width: 16, height: 16, 'aria-hidden': true },
-          el('path', { d: FOLDER_D, fill: 'currentColor' })),
-        wide ? el('span', null, tr('sidebar.label')) : null,
-      )
+          el('path', { d: FOLDER_TREE_D, fill: 'currentColor' }),
+          el('path', {
+            d: TREE_LINE_D,
+            fill: 'none', stroke: 'currentColor', strokeWidth: 1.3,
+            strokeLinecap: 'round', strokeLinejoin: 'round',
+          })))
     }
 
     // ---- 输入桥组件:仅捕获最新的 draft 与 setDraft ----
     function DockBridge(props) {
-      const input = props.useInput((s) => s)
+      const input = props.useInput ? props.useInput((s) => s) : undefined
       const actions = props.inputActions
-      const draftRef = React.useRef(input.draft)
-      draftRef.current = input.draft
+      const draftRef = React.useRef(input ? input.draft : '')
+      draftRef.current = input ? input.draft : ''
       React.useEffect(() => {
         if (!actions) return
         setBridge({
@@ -563,23 +620,6 @@ return {
         if (root === null) return
         loadDir(root, '')
         Object.keys(expanded).forEach((rel) => { if (rel !== '') loadDir(root, rel) })
-      }
-
-      // 拖动左边缘调整面板宽度(280–640px)
-      const onResizeStart = (ev) => {
-        ev.preventDefault()
-        const startX = ev.clientX
-        const startW = c.width
-        const onMove = (me) => {
-          const w = Math.min(640, Math.max(280, Math.round(startW + (startX - me.clientX))))
-          setCfg({ width: w })
-        }
-        const onUp = () => {
-          window.removeEventListener('mousemove', onMove)
-          window.removeEventListener('mouseup', onUp)
-        }
-        window.addEventListener('mousemove', onMove)
-        window.addEventListener('mouseup', onUp)
       }
 
       const markerFor = (entry) => (c.refStyle === 'relative' && root === cwd) ? '[file: ' + entry.rel + ']' : '[file: ' + entry.path + ']'
@@ -757,15 +797,14 @@ return {
         pv,
       )
 
-      return el('div', { className: 'dshwe-panel', style: { width: c.width } },
-        el('div', { className: 'dshwe-resize', title: tr('resize.tip'), onMouseDown: onResizeStart }),
+      return el('div', { className: 'dshwe-panel' },
         el('div', { className: 'dshwe-head' },
           el('span', { className: 'dshwe-head-ico' }, headFolderSvg),
           el('div', { className: 'dshwe-title' }, tr('panel.title') + (rootLabel ? ' · ' + rootLabel : '')),
           el('button', { type: 'button', className: 'dshwe-icobtn', onClick: refresh, title: tr('refresh'), 'aria-label': tr('refresh') },
             el('svg', { viewBox: '0 0 16 16', width: 14, height: 14, 'aria-hidden': true },
               el('path', { d: 'M13.5 8a5.5 5.5 0 1 1-1.61-3.89M13.5 1.5v3h-3', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round' }))),
-          el('button', { type: 'button', className: 'dshwe-icobtn', onClick: () => setOpen(false), title: tr('close'), 'aria-label': tr('close') },
+          el('button', { type: 'button', className: 'dshwe-icobtn', onClick: closeDrawer, title: tr('close'), 'aria-label': tr('close') },
             el('svg', { viewBox: '0 0 16 16', width: 14, height: 14, 'aria-hidden': true },
               el('path', { d: 'M4 4l8 8M12 4l-8 8', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round' }))),
         ),
@@ -785,12 +824,38 @@ return {
       )
     }
 
-    // ---- 浮层入口:右侧面板 + 全屏拖拽提示 + 拖放处理 ----
-    function OverlayEntry(props) {
+    // ---- 弹窗根:浮动面板,位于顶部 header 与输入框之间,带展开/收起动画 ----
+    function DrawerRoot(props) {
       const [on, setOn] = React.useState(getOpen())
+      const [shown, setShown] = React.useState(false)
+      const [rect, setRect] = React.useState({ top: 48, height: 480 })
       const [dragging, setDragging] = React.useState(false)
       React.useEffect(() => subscribeOpen(setOn), [])
 
+      // 打开时先挂载再置 shown,触发 CSS 过渡动画
+      React.useEffect(() => {
+        if (on) {
+          setShown(false)
+          const raf = requestAnimationFrame(() => setShown(true))
+          return () => cancelAnimationFrame(raf)
+        }
+        setShown(false)
+      }, [on])
+
+      // 动态测量弹窗区域:header 底部 → composer 顶部;窗口尺寸/布局变化时实时更新
+      React.useEffect(() => {
+        const update = () => setRect(measurePopup())
+        update()
+        const ro = new ResizeObserver(update)
+        const header = document.querySelector('[data-slot="conversation.session.header"]')
+        const composer = document.querySelector('[data-composer-card]')
+        if (header) ro.observe(header)
+        if (composer) ro.observe(composer)
+        window.addEventListener('resize', update)
+        return () => { ro.disconnect(); window.removeEventListener('resize', update) }
+      }, [])
+
+      // 拖放处理:输入框内走原生插入,其他位置追加引用
       React.useEffect(() => {
         const hasMarker = (e) => e.dataTransfer != null && Array.from(e.dataTransfer.types || []).indexOf(MARKER) >= 0
         const onDragOver = (e) => {
@@ -829,17 +894,26 @@ return {
 
       return el('div', { className: 'dshwe-layer' },
         dragging ? el('div', { className: 'dshwe-hint' }, el('div', { className: 'dshwe-hint-chip' }, dropSvg, tr('drop.hint'))) : null,
-        on ? el(Panel, { ...props, onDraggingChange: setDragging }) : null,
+        on ? el('div', {
+          className: 'dshwe-popup' + (shown ? ' dshwe-popup-on' : ''),
+          style: { top: rect.top, height: rect.height },
+        },
+          el(Panel, { ...props, onDraggingChange: setDragging })) : null,
       )
     }
 
+    slots.inject('conversation.session.header.utilities', () => slots.register(
+      { name: 'conversation.session.header.utilities', id: 'workspace-explorer-drawer', order: 20, label: () => tr('drawer.tip') },
+      (props) => el(HeaderAction, props),
+    ))
+    // 占位注册:顶掉旧版原生包在侧边栏底部的「文件」按钮(用户要求仅保留会话头部入口)
     slots.inject('sidebar.footer.action', () => slots.register(
       { name: 'sidebar.footer.action', id: 'workspace-explorer' },
-      (props) => el(SidebarAction, props),
+      () => null,
     ))
     slots.inject('shell.overlay', () => slots.register(
       { name: 'shell.overlay', id: 'workspace-explorer-panel' },
-      (props) => el(OverlayEntry, props),
+      (props) => el(DrawerRoot, props),
     ))
     slots.inject('conversation.input.dock', () => slots.register(
       { name: 'conversation.input.dock', id: 'workspace-explorer-bridge' },

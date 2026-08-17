@@ -8,7 +8,7 @@
 [![Pages](https://img.shields.io/github/actions/workflow/status/Jiyr0119/dsh-workspace-explorer/pages.yml?label=pages%20deploy)](https://Jiyr0119.github.io/dsh-workspace-explorer/)
 [![Last commit](https://img.shields.io/github/last-commit/Jiyr0119/dsh-workspace-explorer)](https://github.com/Jiyr0119/dsh-workspace-explorer)
 
-> 给 DeepSeek Harness Web UI 的工作区文件资源管理器:右侧面板展示当前工作区目录树,点击或拖拽文件即可把文件引用发给大模型。
+> 给 DeepSeek Harness Web UI 的工作区文件资源管理器:会话头部一个**文件树图标**打开动画弹窗,展示当前工作区目录树;点击或拖拽文件即可把文件引用发给大模型。
 
 灵感来自 VS Code / Cursor 的项目目录树,弥补 DSH 添加工作台后没有目录视图的空白。
 
@@ -33,13 +33,13 @@
 
 ## 功能特性
 
-- 📂 **右上角 dock 面板** — dsh-web-ui 风格的右侧边面板,贴顶吸边:展示当前工作区(会话 cwd)的目录文件树;顶部下拉切换工作区,`+` 注册文件夹,左边缘拖把调宽(280–640px)
-- 🗂 **顶部 Tab 栏** — 面板顶部点击「文件 / 设置」切换页面;设置页实时调节行为(隐藏噪声目录、显示大小、引用格式、预览行数、面板宽度),并同步进 DSH 设置 → 工作区文件
+- 📂 **动画弹窗** — 会话头部右侧(与 session log 同排)的**文件树图标**点击后,弹出一个带淡入/缩放动画的浮动面板;弹窗位置实时测量,**位于会话头部与输入框之间**(聊天区右侧),绝不会盖住输入框
+- 🗂 **顶部 Tab 栏** — 弹窗顶部点击「文件 / 设置」切换页面;设置页实时调节行为(隐藏噪声目录、显示大小、引用格式、预览行数、面板宽度),并同步进 DSH 设置 → 工作区文件
 - 🗂 **懒加载展开** — 目录按需加载,自动隐藏 `node_modules` / `.git` / `dist` / `__pycache__` 等噪声目录
 - 🎨 **文件类型图标** — 按扩展名着色的实心文档徽标(TS / JS / Python / JSON / Markdown / 图片 / 配置 / 脚本等),目录为琥珀色文件夹、展开态高亮
 - 🖱 **点击插入** — 点击文件行,在输入框末尾追加 `[file: 相对路径]` 引用,发送后模型会用 `read` 读取真实内容
 - 🖱 **拖拽插入** — 拖到输入框内任意位置在光标处插入(带全屏虚线提示);拖到其他位置则追加到末尾
-- 🌓 **跟随主题** — 全部使用 DSH 的 `--dsw-alias-*` 设计 token,浅色/深色自动适配;原生弹窗外观(24px 圆角、lv3 阴影、l3 头部分隔线)
+- 🌓 **跟随主题** — 全部使用 DSH 的 `--dsw-alias-*` 设计 token,浅色/深色自动适配;原生弹窗外观(16px 圆角、lv3 阴影)
 - 🔍 **搜索过滤** — 按文件名过滤已加载目录,平铺展示结果并显示匹配数
 - 👁 **文件预览** — 预览任意文本文件前 60 行;可插入引用,小文件(≤32KB)可直接插入完整内容
 - 🌐 **国际化** — 通过 DSH locale 服务注册中/英词典,面板跟随 DSH 界面语言切换
@@ -55,13 +55,13 @@
 2. 将 [`dynamic/host.js`](./dynamic/host.js) 全文粘贴到 **Host 代码**
 3. 将 [`dynamic/client.js`](./dynamic/client.js) 全文粘贴到 **Client 代码**
 4. `cordis_run` 激活,首次出现 Run 卡时点击授权
-5. 点击侧边栏底部 📁「文件」按钮 → 展开目录 → 点击文件,或拖进输入框,然后发送
+5. 点击会话头部 🌲「文件树」图标 → 展开目录 → 点击文件,或拖进输入框,然后发送
 
 **方式二 · npm 源码包**
 `npm install @jiyr0119/dsh-workspace-explorer` — 内含 `dynamic/host.js` / `dynamic/client.js`,按方式一粘贴即可,版本随 semver 发布。
 
-**方式三 · 商店(`dsh plugin add` / dsh-market)— 原生安装(v0.3.0)**
-`dsh plugin --profile web add -w @jiyr0119/dsh-workspace-explorer@latest`(或市场一键按钮)。包同时提供原生 Host 半区(`lib/index.js`,webServer JSON 路由,含 `/dsh-we/api/config`)和浏览器 bundle(`lib/client.js` 经 `dsh.plugin.json`),**含完整交互:顶部 Tab 栏(文件/设置)+ 实时设置页**。0.3.0 构建已通过;真实 DSH 挂载的最后一公里验证待完成(见 [`docs/native-package.md`](./docs/native-package.md))。动态粘贴(方式一)仍是零构建选项。
+**方式三 · 商店(`dsh plugin add` / dsh-market)— 原生安装(v0.4.0)**
+`dsh plugin --profile web add -w @jiyr0119/dsh-workspace-explorer@latest`(或市场一键按钮)。包同时提供原生 Host 半区(`lib/index.js`,webServer JSON 路由,含 `/dsh-we/api/config`)和浏览器 bundle(`lib/client.js` 经 `dsh.plugin.json`),**含完整交互:会话头部文件树图标 + 动画弹窗 + 实时设置页**。构建通过类型检查与 tsdown 打包;动态粘贴(方式一)仍是零构建选项。
 
 > ℹ️ **pnpm 提示**:现代 pnpm(9/10)会拒绝在 workspace root 直接 add(`ERR_PNPM_ADDING_TO_ROOT`),故命令带 `-w`。另一种做法:在 `~/.dsh/profiles/web/.npmrc` 写入 `ignore-workspace-root-check=true`。
 
@@ -71,10 +71,10 @@
 
 ### 使用
 
-1. 点击侧边栏底部的 📁「文件」按钮打开面板
+1. 点击会话头部右侧的 🌲「文件树」图标(与 session log 按钮同排)打开弹窗
 2. 展开目录浏览文件
 3. 点击文件,或把它拖进聊天输入框,然后发送
-4. 用面板顶部的「设置」Tab(或 DSH 设置 → 工作区文件)调整面板行为
+4. 用弹窗顶部的「设置」Tab(或 DSH 设置 → 工作区文件)调整面板行为
 
 ## 目录结构
 
@@ -107,15 +107,15 @@ dsh-workspace-explorer/
 |---|---|
 | 目录读取 | Host `fs.resolve` / `fs.listDir` |
 | Host→Client 通信 | `harness.handle('ws-tree.list' / 'ws-tree.peek')` ↔ `host.call(...)` |
-| 右侧面板 | `shell.overlay` 槽位(`useWorkspaces` / `useSessions`) |
-| 开关按钮 | `sidebar.footer.action` 槽位 |
+| 弹窗 | `shell.overlay` 槽位(`useWorkspaces` / `useSessions`),位置在会话头部与输入框之间实时测量 |
+| 开关按钮 | `conversation.session.header.utilities` 槽位(文件树图标) |
 | 写入输入框 | `conversation.input.dock` → `inputActions.setDraft` |
 | 拖拽插入 | HTML5 DnD;输入框内走原生光标插入,其他位置追加 |
 | 主题适配 | `--dsw-alias-*` CSS 变量(浅/深色自动) |
 
 ## 版本
 
-当前版本 **v0.3** — 顶部 Tab 栏(文件/设置)+ 实时设置页,功能与视觉对齐 DSH 原生 UI。
+当前版本 **v0.4.0** — 会话头部文件树图标打开动画弹窗,位于头部与输入框之间;完整功能(目录树、搜索、预览、点击/拖拽引用、设置、国际化)。
 变更记录见 [CHANGELOG.md](./CHANGELOG.md)。
 
 ## Roadmap
