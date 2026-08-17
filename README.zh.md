@@ -48,8 +48,20 @@
 
 ### 安装与使用
 
-**方式一 · 动态插件粘贴 —— 完整 UI(推荐)**
-*动态 Cordis 插件*:无需构建、无需改任何配置。
+**方式一 · 原生安装(`dsh plugin add` / 商店)— 推荐**
+一条命令装好完整插件,无需构建、无需改任何配置。npm 包同时提供原生 Host 半区(`lib/index.js`,webServer JSON 路由,含 `/dsh-we/api/config`)和浏览器 bundle(`lib/client.js` 经 `dsh.plugin.json`)。
+
+```bash
+dsh plugin --profile web add -w @jiyr0119/dsh-workspace-explorer@latest
+```
+
+(或在 DSH 市场点击安装按钮)。安装后会话头部即出现**文件树图标**;必要时重启或硬刷新 Web UI。这是零配置、免构建的路径。
+
+**方式二 · npm 源码包(手动粘贴)**
+`npm install @jiyr0119/dsh-workspace-explorer` — 内含 `dynamic/host.js` / `dynamic/client.js`,按方式三粘贴即可,版本随 semver 发布。
+
+**方式三 · 动态插件粘贴(零构建备用)**
+*动态 Cordis 插件*:无需构建、无需改任何配置,适合快速尝试或没有商店的环境。
 
 1. 在 DSH Web UI 中让 Agent 执行 `cordis_define`(或使用动态插件面板),`idPrefix` 填 `wsex`
 2. 将 [`dynamic/host.js`](./dynamic/host.js) 全文粘贴到 **Host 代码**
@@ -57,15 +69,9 @@
 4. `cordis_run` 激活,首次出现 Run 卡时点击授权
 5. 点击会话头部 🌲「文件树」图标 → 展开目录 → 点击文件,或拖进输入框,然后发送
 
-**方式二 · npm 源码包**
-`npm install @jiyr0119/dsh-workspace-explorer` — 内含 `dynamic/host.js` / `dynamic/client.js`,按方式一粘贴即可,版本随 semver 发布。
-
-**方式三 · 商店(`dsh plugin add` / dsh-market)— 原生安装(v0.4.0)**
-`dsh plugin --profile web add -w @jiyr0119/dsh-workspace-explorer@latest`(或市场一键按钮)。包同时提供原生 Host 半区(`lib/index.js`,webServer JSON 路由,含 `/dsh-we/api/config`)和浏览器 bundle(`lib/client.js` 经 `dsh.plugin.json`),**含完整交互:会话头部文件树图标 + 动画弹窗 + 实时设置页**。构建通过类型检查与 tsdown 打包;动态粘贴(方式一)仍是零构建选项。
-
 > ℹ️ **pnpm 提示**:现代 pnpm(9/10)会拒绝在 workspace root 直接 add(`ERR_PNPM_ADDING_TO_ROOT`),故命令带 `-w`。另一种做法:在 `~/.dsh/profiles/web/.npmrc` 写入 `ignore-workspace-root-check=true`。
 
-> ⚠️ **常见误解**:收录本身不会自动安装任何东西 —— 用户仍需点安装。有了方式三,安装后面板就会出现(原生 bundle);0.2.0 之前商店安装只会挂载 Host 入口、无 UI。
+> ⚠️ **常见误解**:收录本身不会自动安装任何东西 —— 用户仍需点安装。方式一安装后即出现完整 UI(原生 bundle,v0.4.0+ 已验证 `dsh plugin add` 干净安装、无启动报错)。
 
 详细步骤见 [`docs/install.md`](./docs/install.md)。
 

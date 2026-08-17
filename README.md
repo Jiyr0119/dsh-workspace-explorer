@@ -48,8 +48,20 @@ Inspired by the VS Code / Cursor project tree, filling the gap of a missing dire
 
 ### Installation & usage
 
-**Way 1 · Dynamic plugin paste — full UI (recommended)**
-A *dynamic Cordis plugin*: no build step, no config changes.
+**Way 1 · Native install via `dsh plugin add` / storefront (recommended)**
+One command installs the full plugin — no build step, no config changes. The npm package ships a native host half (`lib/index.js`, webServer JSON routes incl. `/dsh-we/api/config`) **and** a browser bundle (`lib/client.js` via `dsh.plugin.json`).
+
+```bash
+dsh plugin --profile web add -w @jiyr0119/dsh-workspace-explorer@latest
+```
+
+(or click the install button in the DSH market). After install, a **file-tree icon** appears in the session header; restart or hard-refresh the web UI if needed. This is the zero-config, no-build path.
+
+**Way 2 · npm source package (manual paste)**
+`npm install @jiyr0119/dsh-workspace-explorer` — the package ships `dynamic/host.js` / `dynamic/client.js` for the manual paste flow below, with semver releases.
+
+**Way 3 · Dynamic plugin paste (zero-build fallback)**
+A *dynamic Cordis plugin*: no build step, no config changes — useful for quick experimentation or environments without the storefront.
 
 1. In the DSH web UI, have an agent run `cordis_define` (or use the dynamic plugin panel) with `idPrefix` `wsex`.
 2. Paste the whole [`dynamic/host.js`](./dynamic/host.js) into **Host code**.
@@ -57,15 +69,9 @@ A *dynamic Cordis plugin*: no build step, no config changes.
 4. `cordis_run` to activate; authorize on the Run card when it first appears.
 5. Click the 🌲 **file-tree icon** in the session header → expand directories → click a file, or drag it into the composer, then send.
 
-**Way 2 · npm source package**
-`npm install @jiyr0119/dsh-workspace-explorer` — the package ships `dynamic/host.js` / `dynamic/client.js` for the Way-1 paste flow, with semver releases.
-
-**Way 3 · Storefront (`dsh plugin add` / dsh-market) — native install (v0.4.0)**
-`dsh plugin --profile web add -w @jiyr0119/dsh-workspace-explorer@latest` (or the market one-click button). The package ships a native host half (`lib/index.js`, webServer JSON routes incl. `/dsh-we/api/config`) **and** a browser bundle (`lib/client.js` via `dsh.plugin.json`) with the full interaction — animated popup from the session-header file-tree icon + a live settings page. The build passes typecheck and the tsdown bundle; the dynamic paste flow (Way 1) remains the zero-build option.
-
 > ℹ️ **pnpm note**: modern pnpm (9/10) refuses to add a dependency at the workspace root (`ERR_PNPM_ADDING_TO_ROOT`), hence the `-w` flag above. Alternative: create `~/.dsh/profiles/web/.npmrc` containing `ignore-workspace-root-check=true`.
 
-> ⚠️ **Common misconception**: a listing alone never auto-installs anything — users still click install. With Way 3 the panel now appears after install (native bundle); before 0.2.0, storefront installs only mounted the host entry with no UI.
+> ⚠️ **Common misconception**: a listing alone never auto-installs anything — users still click install. With Way 1 the full UI now appears after install (native bundle, v0.4.0+ verified with a clean `dsh plugin add` — no boot errors).
 
 See [`docs/install.md`](./docs/install.md) for details.
 

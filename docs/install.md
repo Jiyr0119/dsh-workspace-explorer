@@ -4,13 +4,23 @@
 
 | 方式 | 操作 | 浏览器面板 |
 |---|---|---|
-| **一、动态粘贴(推荐)** | `cordis_define` 粘贴 `dynamic/host.js` + `dynamic/client.js` | ✅ 完整 UI |
-| **二、npm 源码包** | `npm i @jiyr0119/dsh-workspace-explorer`,再按方式一粘贴 | ✅ 完整 UI |
-| **三、商店一键安装** | 列表/market 收录后 `dsh plugin add -w` 或市场按钮 | ✅ 原生 bundle 含完整 UI(顶部 Tab + 设置页,v0.3.0+) |
+| **一、原生安装(推荐)** | `dsh plugin --profile web add -w @jiyr0119/dsh-workspace-explorer@latest` 或市场按钮 | ✅ 完整 UI(原生 bundle,即装即用) |
+| **二、npm 源码包** | `npm i @jiyr0119/dsh-workspace-explorer`,再按方式三粘贴 | ✅ 完整 UI |
+| **三、动态粘贴(备用)** | `cordis_define` 粘贴 `dynamic/host.js` + `dynamic/client.js` | ✅ 完整 UI(零构建,适合快速尝试) |
 
-> ⚠️ **常见误解**:插件市场收录 ≠ 插件自动出现在用户浏览器。收录 = 用户能浏览条目 + 执行安装命令。**v0.3.0 起方式三即装即用**(原生 bundle 含完整 UI);注意现代 pnpm 需在命令加 `-w`(或在 profile 的 `.npmrc` 写 `ignore-workspace-root-check=true`)。
+> ⚠️ **常见误解**:插件市场收录 ≠ 插件自动出现在用户浏览器。收录 = 用户能浏览条目 + 执行安装命令。**方式一(v0.4.0+)已验证 `dsh plugin add` 干净安装、无启动报错**;注意现代 pnpm 需在命令加 `-w`(或在 profile 的 `.npmrc` 写 `ignore-workspace-root-check=true`)。
 
-## 方式一:动态插件(当前形态,零构建)
+## 方式一:原生安装(推荐,即装即用)
+
+npm 包同时提供原生 Host 半区(`lib/index.js`,webServer JSON 路由 `/dsh-we/api/list|peek|config`)和浏览器 bundle(`lib/client.js` 经 `dsh.plugin.json`),一条命令装好后会话头部即出现文件树图标,无需任何构建或配置:
+
+```bash
+dsh plugin --profile web add -w @jiyr0119/dsh-workspace-explorer@latest
+```
+
+安装完成后重启或硬刷新 `dsh web`。若 profile 的 `node_modules` 尚未初始化,先 `pnpm install`。
+
+## 方式三:动态插件(零构建备用)
 
 动态 Cordis 插件在 DSH 进程内定义并运行,不落盘到任何配置文件,进程重启后失效。
 
