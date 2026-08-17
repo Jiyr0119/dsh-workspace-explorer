@@ -93,9 +93,10 @@ Tip: put `deepseek-harness`, `cordis`, `plugin` in the repo description for disc
 
 ```bash
 # 设置描述 / 主页 / topics / set description, homepage, topics
+# (主页指向 GitHub 仓库;交互式预览已隐藏,不再指向 Pages)
 gh repo edit Jiyr0119/dsh-workspace-explorer \
   --description "DeepSeek Harness 工作区文件资源管理器..." \
-  --homepage "https://jiyr0119.github.io/dsh-workspace-explorer/" \
+  --homepage "https://github.com/Jiyr0119/dsh-workspace-explorer" \
   --add-topic deepseek-harness --add-topic cordis --add-topic dsh-plugin
 
 # 发布 Release / create a release (需要先打 tag / tag first)

@@ -1,9 +1,12 @@
 name: Deploy demo to GitHub Pages
 
+# 交互式预览已隐藏(在线预览链接已从 README 移除)。
+# 保留手动触发:如后续需要恢复预览,在此工作流界面点 Run workflow 即可;
+# 要恢复自动部署,把下面注释的 push 触发器取消注释。
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+  # push:
+  #   branches: [main]
 
 permissions:
   contents: read

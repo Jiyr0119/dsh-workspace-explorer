@@ -5,18 +5,14 @@
 [![License](https://img.shields.io/github/license/Jiyr0119/dsh-workspace-explorer)](LICENSE)
 [![npm](https://img.shields.io/npm/v/@jiyr0119/dsh-workspace-explorer)](https://www.npmjs.com/package/@jiyr0119/dsh-workspace-explorer)
 [![npm downloads](https://img.shields.io/npm/dt/@jiyr0119/dsh-workspace-explorer)](https://www.npmjs.com/package/@jiyr0119/dsh-workspace-explorer)
-[![Pages](https://img.shields.io/github/actions/workflow/status/Jiyr0119/dsh-workspace-explorer/pages.yml?label=pages%20deploy)](https://Jiyr0119.github.io/dsh-workspace-explorer/)
+[![Awesome DSH Plugin](https://awesome-dsh-plugin.com/badge.svg)](https://awesome-dsh-plugin.com)
 [![Last commit](https://img.shields.io/github/last-commit/Jiyr0119/dsh-workspace-explorer)](https://github.com/Jiyr0119/dsh-workspace-explorer)
 
 > A workspace file explorer for the DeepSeek Harness Web UI: a **file-tree button in the session header** opens an animated popup showing the current workspace's directory tree — click or drag a file to send its reference to the model.
 
 Inspired by the VS Code / Cursor project tree, filling the gap of a missing directory view in DSH after workspaces are added.
 
-## 🖥 Live Demo (GitHub Pages)
-
-🔗 [**Try the interactive preview**](https://Jiyr0119.github.io/dsh-workspace-explorer/)
-
-> An interactive **mock** of the panel UI — no DeepSeek Harness needed to try it. The real plugin runs inside the Harness web UI as a dynamic Cordis plugin.
+## 🖥 Demo
 
 ![dsh-workspace-explorer demo](demo/preview.gif)
 
@@ -38,10 +34,11 @@ Inspired by the VS Code / Cursor project tree, filling the gap of a missing dire
 - 🗂 **Lazy-loading tree** — directories load on demand; noise dirs (`node_modules`, `.git`, `dist`, `__pycache__`, …) are hidden automatically
 - 🎨 **File-type icons** — filled, color-coded document badges per extension (TS / JS / Python / JSON / Markdown / image / config / shell, …); amber folders that brighten when expanded
 - 🖱 **Click to insert** — click a file row to append a `[file: relative-path]` reference to the composer; after sending, the model resolves it with its `read` tool
-- 🖱 **Drag & drop** — drop a file into the composer to insert at the caret (fullscreen dashed hint); dropping elsewhere appends to the end
+- 🖱 **Drag & drop** — drop a file into the composer to insert at the caret (fullscreen dashed hint); dropping elsewhere appends to the end. **Folders are draggable too** — dropping a directory inserts a depth-limited compact tree listing
+- 🖱 **Multi-select & batch insert** — Shift / ⌘ click to select multiple rows, then insert all of them at once (files → references, folders → tree listings)
 - 🌓 **Theme-aware** — built entirely on DSH's `--dsw-alias-*` design tokens; adapts to light/dark with a native dialog look (16px radius, lv3 shadow)
 - 🔍 **Search & filter** — filter files by name across loaded directories (flat result list with a match count)
-- 👁 **Inline preview** — peek the first 60 lines of any text file; insert the reference, or paste the full content for small files (≤ 32 KB)
+- 👁 **Paginated preview** — preview any text file with prev/next line paging (total lines & current page shown); insert the reference, or paste the full content for small files (≤ 32 KB)
 - 🌐 **i18n** — zh/en dictionaries registered through DSH's locale service; the panel follows the DSH UI language
 
 ## Quick Start
@@ -97,7 +94,7 @@ dsh-workspace-explorer/
 │   └── preview.gif       # Demo animation (README)
 ├── .github/
 │   └── workflows/
-│       └── pages.yml     # Deploys demo/ to GitHub Pages
+│       └── pages.yml     # Deploy demo/ to GitHub Pages (manual; preview hidden)
 ├── docs/
 │   ├── install.md        # Install guide
 │   ├── native-package.md # Native DSH package roadmap (upstream PR sketch)
@@ -126,10 +123,12 @@ dsh-workspace-explorer/
 
 ## Version
 
-Current version **v0.4.0** — animated popup opened from a session-header file-tree icon, positioned between the header and the composer; full feature set (tree, search, preview, click/drag references, settings, i18n).
+Current version **v0.5.0** — animated popup opened from a session-header file-tree icon, positioned between the header and the composer; full feature set (tree, search, multi-select batch insert, folder drag & drop, paginated preview, click/drag references, settings, i18n).
 See [CHANGELOG.md](./CHANGELOG.md) for release notes.
 
 ## Roadmap
+
+Focused on the two lines that actually matter to the product: the **read path** (pointing the model at code) and the **write path** (editing files). Everything else is parked in the backlog below instead of being listed as a peer track.
 
 **Done ✅**
 
@@ -137,35 +136,27 @@ See [CHANGELOG.md](./CHANGELOG.md) for release notes.
 - [x] Search & filter; inline preview (first 60 lines); content insertion for small files (≤ 32 KB)
 - [x] i18n (zh/en via the DSH locale service, follows the DSH UI language)
 - [x] Demo language toggle, GitHub Pages preview, demo GIF, storefront screenshots
-- [x] npm source package + `dsh.bundle` contract + awesome-dsh-plugin PR ([#1158](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/1158), pending merge)
+- [x] npm source package + `dsh.bundle` contract + awesome-dsh-plugin listing ([#1158](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/1158))
 
-**Track A — UX polish**
+**Milestone M1 — read-path UX ✅ (v0.5.0)**
 
-- [ ] Multi-select & batch insert file references (Shift / Cmd)
-- [ ] Draggable / resizable panel that remembers position & width
-- [ ] Full keyboard navigation (↑↓ to move, Enter to insert, Esc to close)
-- [ ] Path actions: copy path, reveal in the OS file manager
+- [x] **Multi-target references**: drag a directory in (inserts a depth-limited compact tree listing) + multi-select / batch-insert file references (Shift / Cmd) — one capability, one milestone
+- [x] **Paginated full preview** for large files (prev / next page, lazy loading) instead of the 60-line / 200 KB cap — not rendering the whole file at once
 
-**Track B — Productivity**
+**Milestone M2 — write path (separate product decision)**
 
-- [ ] Content search across loaded dirs (host-side grep)
-- [ ] Recent files / favorites
-- [ ] Paginated preview for large files (next / previous page)
-- [ ] File operations (rename / delete / new, under the fs permission fence)
+- [ ] **In-panel file editing**: approval gate + atomic save + change detection (warn when the file changed on disk). From here the plugin stops being read-only — a deliberate repositioning that also needs updated copy and screenshots
 
-**Track C — Ecosystem & distribution**
+**Parked backlog** (do when real demand shows up)
 
-- [x] npm `@jiyr0119/dsh-workspace-explorer` (v0.1.1 publishing)
-- [x] awesome-dsh-plugin listing (PR #1158)
-- [ ] Native DSH package (`@Remote` namespace; needs upstream support) — see [`docs/native-package.md`](./docs/native-package.md)
-- [ ] dsh-genie hardened install (host-side persistence)
-- [ ] CI: lint + e2e + automated release
+- Content search across loaded dirs (host-side grep); recent files / favorites
+- Draggable / resizable panel that remembers position & width; full keyboard navigation; copy path / reveal in the OS file manager
+- Virtual scrolling (huge dirs); light/dark theme regression checks; Playwright e2e
 
-**Track D — Quality & maintainability**
+**Upstream-dependent chores**
 
-- [ ] Virtual scrolling (huge directories)
-- [ ] Light / dark theme regression checks
-- [ ] Playwright e2e for the demo and the real plugin
+- Native DSH package (`@Remote` namespace; needs upstream support) — see [`docs/native-package.md`](./docs/native-package.md)
+- dsh-genie hardened install; CI (lint + e2e + automated release)
 
 ## License
 

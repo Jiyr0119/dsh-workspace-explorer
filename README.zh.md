@@ -5,18 +5,14 @@
 [![License](https://img.shields.io/github/license/Jiyr0119/dsh-workspace-explorer)](LICENSE)
 [![npm](https://img.shields.io/npm/v/@jiyr0119/dsh-workspace-explorer)](https://www.npmjs.com/package/@jiyr0119/dsh-workspace-explorer)
 [![npm downloads](https://img.shields.io/npm/dt/@jiyr0119/dsh-workspace-explorer)](https://www.npmjs.com/package/@jiyr0119/dsh-workspace-explorer)
-[![Pages](https://img.shields.io/github/actions/workflow/status/Jiyr0119/dsh-workspace-explorer/pages.yml?label=pages%20deploy)](https://Jiyr0119.github.io/dsh-workspace-explorer/)
+[![Awesome DSH Plugin](https://awesome-dsh-plugin.com/badge.svg)](https://awesome-dsh-plugin.com)
 [![Last commit](https://img.shields.io/github/last-commit/Jiyr0119/dsh-workspace-explorer)](https://github.com/Jiyr0119/dsh-workspace-explorer)
 
 > 给 DeepSeek Harness Web UI 的工作区文件资源管理器:会话头部一个**文件树图标**打开动画弹窗,展示当前工作区目录树;点击或拖拽文件即可把文件引用发给大模型。
 
 灵感来自 VS Code / Cursor 的项目目录树,弥补 DSH 添加工作台后没有目录视图的空白。
 
-## 🖥 在线预览(GitHub Pages)
-
-🔗 [**试试交互式预览**](https://Jiyr0119.github.io/dsh-workspace-explorer/)
-
-> 这是面板 UI 的交互式**模拟预览**,无需安装 DeepSeek Harness 即可体验。真实插件运行在 Harness Web UI 内(动态 Cordis 插件)。
+## 🖥 演示 Demo
 
 ![dsh-workspace-explorer 演示](demo/preview.gif)
 
@@ -38,10 +34,11 @@
 - 🗂 **懒加载展开** — 目录按需加载,自动隐藏 `node_modules` / `.git` / `dist` / `__pycache__` 等噪声目录
 - 🎨 **文件类型图标** — 按扩展名着色的实心文档徽标(TS / JS / Python / JSON / Markdown / 图片 / 配置 / 脚本等),目录为琥珀色文件夹、展开态高亮
 - 🖱 **点击插入** — 点击文件行,在输入框末尾追加 `[file: 相对路径]` 引用,发送后模型会用 `read` 读取真实内容
-- 🖱 **拖拽插入** — 拖到输入框内任意位置在光标处插入(带全屏虚线提示);拖到其他位置则追加到末尾
+- 🖱 **拖拽插入** — 文件拖到输入框内任意位置在光标处插入(带全屏虚线提示),拖到其他位置则追加到末尾;**目录也可拖拽**,松开即插入限层数的紧凑目录树文本
+- 🖱 **多选批量插入** — Shift / ⌘ 点击多选,一键批量插入(文件 → 引用,目录 → 目录树)
 - 🌓 **跟随主题** — 全部使用 DSH 的 `--dsw-alias-*` 设计 token,浅色/深色自动适配;原生弹窗外观(16px 圆角、lv3 阴影)
 - 🔍 **搜索过滤** — 按文件名过滤已加载目录,平铺展示结果并显示匹配数
-- 👁 **文件预览** — 预览任意文本文件前 60 行;可插入引用,小文件(≤32KB)可直接插入完整内容
+- 👁 **分页预览** — 任意文本文件按行翻页预览(上一页 / 下一页),显示总行数与当前页;可插入引用,小文件(≤32KB)可直接插入完整内容
 - 🌐 **国际化** — 通过 DSH locale 服务注册中/英词典,面板跟随 DSH 界面语言切换
 
 ## 快速开始
@@ -97,7 +94,7 @@ dsh-workspace-explorer/
 │   └── preview.gif       # 演示动图(README)
 ├── .github/
 │   └── workflows/
-│       └── pages.yml     # 部署 demo/ 到 GitHub Pages
+│       └── pages.yml     # 部署 demo/ 到 GitHub Pages(手动;预览已隐藏)
 ├── docs/
 │   ├── install.md        # 安装指南
 │   ├── native-package.md # 原生 DSH 包路线(上游 PR 草图)
@@ -121,10 +118,12 @@ dsh-workspace-explorer/
 
 ## 版本
 
-当前版本 **v0.4.0** — 会话头部文件树图标打开动画弹窗,位于头部与输入框之间;完整功能(目录树、搜索、预览、点击/拖拽引用、设置、国际化)。
+当前版本 **v0.5.0** — 会话头部文件树图标打开动画弹窗,位于头部与输入框之间;完整功能(目录树、搜索、多选批量插入、目录拖拽、分页预览、点击/拖拽引用、设置、国际化)。
 变更记录见 [CHANGELOG.md](./CHANGELOG.md)。
 
 ## Roadmap
+
+聚焦两条与产品真正相关的主线:**读路径**(把模型指向代码)与**写路径**(编辑文件)。其余事项全部挪到 Backlog 搁置,不再与产品功能平级。
 
 **已完成 ✅**
 
@@ -132,35 +131,27 @@ dsh-workspace-explorer/
 - [x] 搜索过滤;内联预览(前 60 行);小文件(≤32KB)内容插入
 - [x] 国际化(zh/en,跟随 DSH 界面语言)
 - [x] 演示页中英切换、GitHub Pages 预览、演示 GIF、市场截图素材
-- [x] npm 源码包 + `dsh.bundle` 契约 + awesome 列表 PR([#1158](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/1158),待合并)
+- [x] npm 源码包 + `dsh.bundle` 契约 + awesome 列表([#1158](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/1158))
 
-**线路 A — 体验完善**
+**主线 M1 — 读路径体验 ✅(v0.5.0)**
 
-- [ ] 多选批量插入文件引用(Shift / Cmd)
-- [ ] 面板可拖动/可调宽,记住位置与宽度
-- [ ] 完整键盘导航(↑↓ 选择、Enter 插入、Esc 关闭)
-- [ ] 路径操作:复制路径、在系统文件管理器中显示
+- [x] **多目标引用**:目录拖拽(插入限层数的紧凑目录树文本)+ 多选批量插入文件引用(Shift / Cmd)——同一能力,一个里程碑
+- [x] **大文件分页全量预览**(上一页 / 下一页、懒加载),取代 60 行 / 200KB 上限,而不是一次性渲染整份内容
 
-**线路 B — 生产力**
+**主线 M2 — 写路径(单独的产品决策)**
 
-- [ ] 跨已加载目录的内容搜索(host 侧 grep)
-- [ ] 最近文件 / 收藏夹
-- [ ] 大文件分页预览(上一页 / 下一页)
-- [ ] 文件操作(重命名 / 删除 / 新建,受 fs 权限围栏约束)
+- [ ] **面板内文件编辑**:审批门 + 原子保存 + 磁盘变更检测(提示文件已被外部修改);从这里起插件不再是只读工具,属于刻意的重新定位,需同步更新定位文案与截图
 
-**线路 C — 生态与分发**
+**搁置 Backlog**(出现真实需求再做)
 
-- [x] npm 包 `@jiyr0119/dsh-workspace-explorer`(v0.1.1 发布中)
-- [x] awesome-dsh-plugin 收录(PR #1158)
-- [ ] 原生 DSH 包(`@Remote` 命名空间,需上游支持)— 见 [`docs/native-package.md`](./docs/native-package.md)
-- [ ] 接入 dsh-genie 固化安装(host 侧持久化)
-- [ ] CI:lint + e2e + 自动发布
+- 跨已加载目录的内容搜索(host 侧 grep);最近文件 / 收藏夹
+- 面板可拖动/可调宽并记住位置;完整键盘导航;复制路径 / 在系统文件管理器中显示
+- 虚拟滚动(超大目录);浅/深色主题回归检查;Playwright e2e
 
-**线路 D — 质量与可维护性**
+**依赖上游的杂务**
 
-- [ ] 虚拟滚动(超大目录性能)
-- [ ] 浅 / 深色主题回归检查
-- [ ] Playwright e2e(演示页与真实插件)
+- 原生 DSH 包(`@Remote` 命名空间,需上游支持)— 见 [`docs/native-package.md`](./docs/native-package.md)
+- 接入 dsh-genie 固化安装;CI(lint + e2e + 自动发布)
 
 ## License
 
