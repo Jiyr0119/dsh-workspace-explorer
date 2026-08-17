@@ -148,50 +148,41 @@ npm publish            # 账号开 2FA 时,需输入一次性验证码(OTP)
 
 ## 六、awesome-dsh-plugin 提交流程 / Submission workflow
 
-> ⚠️ 记录更正(2026-08-17):早前笔记写「PR #1158 已合并」**是错的**——实际上游 `omdsh-dev/awesome-dsh-plugin` 与本地 fork 上均无任何 PR,条目从未被收录。v0.4.0 起按本流程**首次真正提交**。避免凭记忆写「已合并」,提交后务必用 `gh pr view <num> --repo omdsh-dev/awesome-dsh-plugin` 核实状态。
+> ⚠️ 流程更新(2026-08-17):上游已**重构**——不再用 `data/plugins/*.yml` + `generate-readme.mjs` 生成,改为**直接编辑 `README.md`(英文)与 `README.zh.md`(中文),在对应分类下各加一行**;CI(build-site.yml)合并后自动重建 site。旧 YAML 流程已废弃。
+> ⚠️ 记录更正:早前笔记写「PR #1158 已合并」是**错的**——实际上游从未收录过本插件。v0.4.0 起首次真实提交:**PR #6**(2026-08-17,状态 OPEN)。提交后务必用 `gh pr view <num> --repo omdsh-dev/awesome-dsh-plugin` 核实状态,别凭记忆。
 
-### 1. 达标门槛(CI 会查,不满足直接红)
+### 1. 门槛要求(贡献指南)
 
-- 仓库存在 **`dsh.bundle`**(package.json 里 `dsh.bundle.patch` 字段)
-- 仓库年龄 ≥ 1 天
-- commits ≥ 10
-- 仓库有 `dsh-plugin` topic(已加)
+- 仓库的 `package.json` 声明 **`dsh.bundle`**(`dsh.bundle.patch` → `cordis.patch.yml`),只声明 `dsh.client` 会被拒。
+- 仓库有真实可用的代码、活跃维护;添加 `dsh-plugin` topic。
+- 描述只说功能,不带营销词(superlatives)。
 
-### 2. 提交内容
+### 2. 提交内容(新流程)
 
-- 新建 `data/plugins/Jiyr0119__dsh-workspace-explorer.yml`(owner 双下划线 repo),字段:
+- 在 `README.md` 与 `README.zh.md` 的对应分类(本项目:UI Enhancements / 🎨 UI 增强)各加一行:
 
-```yaml
-url: https://github.com/Jiyr0119/dsh-workspace-explorer
-name: Jiyr0119/dsh-workspace-explorer
-category: ui
-description:
-  en: Workspace file-tree panel for the DSH web UI, with click or drag-to-composer file references.
-  zh: 为 DSH Web UI 提供工作区文件树面板,点击或拖拽文件引用到输入框。
+```markdown
+- [Jiyr0119/dsh-workspace-explorer](https://github.com/Jiyr0119/dsh-workspace-explorer) - Standalone workspace file-tree panel for the DSH Web UI: ...; single-purpose, zero-config, one-command install.
 ```
 
-- 截图条目合并进 awesome 仓库的 `data/screenshots.json`(以仓库 URL 为 key,1–8 张,URL 用 `raw.githubusercontent.com/.../main/assets/screenshots/*.png`)。
+- 描述以句号结尾;含 `: `(英文冒号+空格)时加引号;避免 `[file: ...]` 触发 awesome-lint no-undefined-references。
+- 只改 README 两个文件,**不要手改 site/docs/data**(CI 自动重建)。
 
 ### 3. 差异化定位(单插件 vs 全家桶)/ Product positioning
 
-awesome 里大量 UI 插件是**一整套工作台**(如 `omdsh-dev/DSH-better-sidebar`:文件编辑 + 终端 + Git + 子代理全家桶)。本插件定位要突出**单插件、即插即用**:
+awesome 里大量 UI 插件是**一整套工作台**(如 `omdsh-dev/DSH-better-sidebar`:文件编辑 + 终端 + Git + 子代理全家桶,还有配套的 workspace-search / media-preview 等子插件)。本插件定位要突出**单插件、即插即用**:
 
 - **独立单插件**:只做「工作区文件树 + 引用插入」一件事,不捆绑终端/Git/子代理等,不抢占壳的 details 列与工具详情。
-- **即插即用**:`dsh plugin add` 一条命令装完即用,零配置、无构建、不依赖其他插件;原生包自带 host 路由 + 浏览器 bundle,无需手动粘贴。
-- 描述避免营销词(awesome 要求「只说功能,不带超级形容词」),用「single-purpose / zero-config / standalone」这类事实词。
+- **即插即用**:`dsh plugin add` 一条命令装完即用,零配置、无构建、不依赖其他插件;原生包自带 host 路由 + 浏览器 bundle。
+- 描述用「standalone / single-purpose / zero-config / one-command」这类事实词,和 better-sidebar 的「full sidebar workbench」形成对比。
 
-### 4. README 生成
+### 4. 提交流程
 
-- awesome 仓库的 README 由 `node scripts/generate-readme.mjs` 从 YAML 生成(需先 `npm ci` 装 js-yaml/marked),**不要手改 README**。
-- 流程:clone 自己的 fork → 建分支 → 加 YAML + 改 screenshots.json → `npm ci && node scripts/generate-readme.mjs` → 提交(README.md + README.zh.md 一起)→ push → `gh pr create --repo omdsh-dev/awesome-dsh-plugin`。
-- 合并冲突时:screenshots.json 冲突取 theirs(其他条目优先),再把自己的条目补回去,重新生成 README 提交。
+- 更新自己的 fork:`git fetch upstream && git checkout -b feat/xxx upstream/main`(fork 的 main 可能因 shallow clone 与上游历史不相关,直接基于 `upstream/main` 建分支最干净)。
+- 提交 → push 到 fork 分支 → `gh pr create --repo omdsh-dev/awesome-dsh-plugin --base main --head <owner>:<branch>`。
+- 合并冲突时:README 冲突取 theirs(其他条目优先),把自己的行补回去。
 
-### 5. awesome-lint 注意
-
-- 描述里出现 `[file: path]` 等会被当成引用检查(no-undefined-references),必须转义为 `\[file: path\]`。
-- 描述含 `: `(英文冒号+空格)必须加引号,否则 YAML 解析成嵌套键。
-
-### 6. 收录 ≠ 浏览器自动生效
+### 5. 收录 ≠ 浏览器自动生效
 
 - dsh-market(DSH 内商店)自动同步 awesome 列表;但**商店收录不代表插件装完就有 UI** —— 0.2.0 原生化之前,商店安装只有 host 端、没有浏览器面板。README 要诚实写明当前安装方式的效果。
 
