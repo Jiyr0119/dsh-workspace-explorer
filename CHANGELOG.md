@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.3.1] - 2026-08-17
+
+### 修复 Fix
+
+- **`cordis.patch.yml` YAML 语法错误**:`name` 的作用域包名未加引号(`@` 不能作为 YAML 裸标量起始字符),导致 `dsh web` 启动解析补丁时报 `bad indentation of a mapping entry` 崩溃。已加引号并对齐官方格式 / Unquoted `@`-scoped package name in `cordis.patch.yml` broke `dsh web` boot; value is now quoted to match the official bundle patches.
+
 ## [v0.3.0] - 2026-08-17
 
 ### 交互改造 Interaction overhaul (dsh-better-sidebar style)

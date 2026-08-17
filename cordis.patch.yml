@@ -1,7 +1,10 @@
 # 组合补丁:安装后把插件行插入 profile 组合 / Composition patch applied on `dsh plugin add`.
 #
-# 说明:完整可交互 UI 依赖动态插件桥(harness)或原生 Remote(上游 PR),见 docs/native-package.md。
-# 当前此补丁保证包可被 cordis 解析挂载(Host 入口 index.js),浏览器 UI 请按 README 粘贴 src/host.js + src/client.js。
+# v0.3.0+:包为原生单包 —— Host 半区(lib/index.js,webServer /dsh-we/api/* JSON 路由,含 config)
+# + 浏览器 bundle(lib/client.js,经 dsh.client 声明),安装后浏览器面板完整出现(顶部 Tab + 设置页)。
+# 动态粘贴版(dynamic/host.js + dynamic/client.js)仍保留为零构建选项。
+#
+# 注意:作用域包名必须加引号(YAML 中 @ 不能作为裸标量起始字符,否则 dsh web 启动解析补丁直接失败)。
 - insert:
     - id: workspace-explorer
-      name: @jiyr0119/dsh-workspace-explorer
+      name: '@jiyr0119/dsh-workspace-explorer'

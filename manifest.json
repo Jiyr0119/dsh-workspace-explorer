@@ -1,7 +1,7 @@
 {
   "id": "dsh-workspace-explorer",
   "name": "工作区文件面板 (Workspace Explorer)",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "右侧弹出面板展示当前工作区目录文件树,顶部 Tab 切换文件/设置,点击或拖拽文件引用到聊天输入框发送给大模型",
   "kind": "dynamic-cordis-plugin",
   "platforms": {
