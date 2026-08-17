@@ -1,10 +1,8 @@
-// dsh-workspace-explorer — Client 半区（动态 Cordis 插件代码）
+// dsh-workspace-explorer — Client 半区 v2(顶部 Tab + 设置页)
 //
-// 在 DeepSeek Harness 的动态插件“Client 代码”框中粘贴本文件内容即可。
-// 职责：右侧浮层面板（对齐 DSH 原生弹窗风格）+ 工作区文件树 + 文件类型图标 +
-// 点击/拖拽插入引用 + 文件名搜索过滤 + 文件预览（前 60 行 / 小文件内联插入）+
-// 国际化（zh/en 词典，跟随 DSH 界面语言）。
-// 注意：动态插件要求纯 JavaScript + React.createElement，禁止 import / TypeScript / JSX。
+// 交互对标 dsh-better-sidebar:面板顶部 Tab 栏(文件/设置)切换页面;
+// 设置页逐项开关/下拉,实时生效;并注册 DSH 设置壳的 settings.section 页。
+// 注意:动态插件要求纯 JavaScript + React.createElement,禁止 import / TypeScript / JSX。
 return {
   apply(ctx) {
     const slots = ctx.get('slots')
@@ -15,7 +13,7 @@ return {
     const MARKER = 'application/x-dsh-ws-file'
     const el = React.createElement
 
-    // ---- 国际化：注册 zh/en 词典，跟随 DSH 界面语言 ----
+    // ---- 国际化:注册 zh/en 词典,跟随 DSH 界面语言 ----
     const NS = 'dsh-workspace-explorer'
     const DICTS = {
       zh: {
@@ -50,6 +48,24 @@ return {
         'insert.tip': '插入引用',
         'drop.hint': '松开以插入文件引用到输入框',
         'add.ws': '添加工作区',
+        'tab.files': '文件',
+        'tab.settings': '设置',
+        'settings.title': '面板设置',
+        'settings.general': '通用',
+        'settings.hideNoise': '隐藏噪声目录',
+        'settings.hideNoise.desc': '.git · node_modules · dist 等',
+        'settings.showSize': '显示文件大小',
+        'settings.refStyle': '文件引用格式',
+        'settings.refStyle.rel': '相对路径',
+        'settings.refStyle.abs': '绝对路径',
+        'settings.peekLines': '预览行数',
+        'settings.width': '面板宽度',
+        'settings.width.narrow': '紧凑',
+        'settings.width.std': '标准',
+        'settings.width.wide': '宽松',
+        'settings.restore': '恢复默认',
+        'settings.note': '配置在本次会话内生效,重启插件后恢复默认。',
+        'settings.nav': '工作区文件',
       },
       en: {
         'panel.title': 'Workspace Files',
@@ -83,6 +99,24 @@ return {
         'insert.tip': 'Insert reference',
         'drop.hint': 'Release to insert the file reference into the composer',
         'add.ws': 'Add workspace',
+        'tab.files': 'Files',
+        'tab.settings': 'Settings',
+        'settings.title': 'Panel settings',
+        'settings.general': 'General',
+        'settings.hideNoise': 'Hide noise dirs',
+        'settings.hideNoise.desc': '.git · node_modules · dist …',
+        'settings.showSize': 'Show file sizes',
+        'settings.refStyle': 'File reference format',
+        'settings.refStyle.rel': 'Relative path',
+        'settings.refStyle.abs': 'Absolute path',
+        'settings.peekLines': 'Preview lines',
+        'settings.width': 'Panel width',
+        'settings.width.narrow': 'Narrow',
+        'settings.width.std': 'Standard',
+        'settings.width.wide': 'Wide',
+        'settings.restore': 'Reset to defaults',
+        'settings.note': 'Settings apply for this run; they reset when the plugin restarts.',
+        'settings.nav': 'Workspace Explorer',
       },
     }
     let tr = (k, vars) => { let s = DICTS.zh[k] || k; if (vars) for (const key in vars) s = s.split('{' + key + '}').join(String(vars[key])); return s }
@@ -131,6 +165,24 @@ return {
 .dshwe-title { font-size: 15px; font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dshwe-icobtn { border: 0; background: transparent; color: var(--dsw-alias-label-secondary, #9a9a9a); width: 28px; height: 28px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex: none; }
 .dshwe-icobtn:hover { background: var(--dsw-alias-interactive-bg-hover, rgba(128,128,128,.14)); color: var(--dsw-alias-label-primary, #e8e8e8); }
+.dshwe-tabs { display: flex; gap: 2px; padding: 0 14px; flex: none; border-bottom: 1px solid var(--dsw-alias-border-l3, rgba(128,128,128,.2)); }
+.dshwe-tab {
+  flex: 1; position: relative; height: 36px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  border: 0; background: transparent; color: var(--dsw-alias-label-secondary, #9a9a9a);
+  font: inherit; font-size: 12.5px; font-weight: 500; cursor: pointer;
+  border-radius: 10px 10px 0 0;
+}
+.dshwe-tab:hover { color: var(--dsw-alias-label-primary, #e8e8e8); background: var(--dsw-alias-interactive-bg-hover, rgba(128,128,128,.08)); }
+.dshwe-tab-on { color: var(--dsw-alias-label-primary, #e8e8e8); }
+.dshwe-tab-ind {
+  position: absolute; left: 24%; right: 24%; bottom: -1px; height: 2px; border-radius: 999px;
+  background: var(--dsw-alias-state-business-primary, #4176e6);
+  opacity: 0; transform: scaleX(.4);
+  transition: opacity .16s ease, transform .16s ease;
+}
+.dshwe-tab-on .dshwe-tab-ind { opacity: 1; transform: scaleX(1); }
+@media (prefers-reduced-motion: reduce) { .dshwe-tab-ind { transition: none } }
 .dshwe-selrow { display: flex; gap: 8px; padding: 12px 16px 4px; align-items: center; }
 .dshwe-sel, .dshwe-filter {
   flex: 1; min-width: 0; height: 30px;
@@ -212,16 +264,67 @@ return {
 .dshwe-act:hover { background: var(--dsw-alias-interactive-bg-hover, rgba(128,128,128,.12)); color: var(--dsw-alias-label-primary, #e8e8e8); }
 .dshwe-act-on { color: var(--dsw-alias-state-business-primary, #4176e6); }
 .dshwe-row:focus-visible, .dshwe-icobtn:focus-visible, .dshwe-act:focus-visible, .dshwe-addbtn:focus-visible, .dshwe-prevbtn:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary, #4176e6); outline-offset: -2px; }
+.dshwe-tab:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary, #4176e6); outline-offset: -2px; }
+.dshwe-tabbody { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.dshwe-set { display: flex; flex-direction: column; gap: 2px; padding: 8px 16px 14px; overflow: auto; flex: 1; }
+.dshwe-setsec { font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--dsw-alias-label-caption, #8a8a8a); padding: 10px 4px 6px; }
+.dshwe-setrow { display: flex; align-items: center; gap: 12px; padding: 9px 10px; border-radius: 12px; }
+.dshwe-setrow:hover { background: var(--dsw-alias-interactive-bg-hover, rgba(128,128,128,.06)); }
+.dshwe-setinfo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.dshwe-setlabel { font-size: 12.5px; color: var(--dsw-alias-label-primary, #e8e8e8); }
+.dshwe-setcap { font-size: 11px; color: var(--dsw-alias-label-caption, #8a8a8a); }
+.dshwe-switch {
+  flex: none; width: 34px; height: 20px; border-radius: 999px; padding: 0;
+  border: 1px solid var(--dsw-alias-border-l2, rgba(128,128,128,.4));
+  background: var(--dsw-alias-interactive-bg-hover, rgba(128,128,128,.18));
+  position: relative; cursor: pointer; transition: background .15s ease, border-color .15s ease;
+}
+.dshwe-switch::after {
+  content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--dsw-alias-label-secondary, #9a9a9a);
+  transition: transform .15s ease;
+}
+.dshwe-switch[aria-checked='true'] { background: var(--dsw-alias-state-business-primary, #4176e6); border-color: transparent; }
+.dshwe-switch[aria-checked='true']::after { transform: translateX(14px); background: #fff; }
+@media (prefers-reduced-motion: reduce) { .dshwe-switch, .dshwe-switch::after { transition: none } }
+.dshwe-setselect {
+  flex: none; height: 28px; min-width: 118px;
+  background: transparent; color: var(--dsw-alias-label-primary, #e8e8e8);
+  border: 1px solid var(--dsw-alias-border-l2, rgba(128,128,128,.35));
+  border-radius: 8px; padding: 0 8px; font: inherit; font-size: 12px; outline: none;
+}
+.dshwe-setselect:focus-visible { border-color: var(--dsw-alias-state-business-primary, #4176e6); }
+.dshwe-setfoot { display: flex; justify-content: flex-end; padding: 8px 4px 2px; }
+.dshwe-setnote { font-size: 11px; color: var(--dsw-alias-label-dimmed, #777); padding: 2px 10px 8px; }
+.dshwe-setpage { padding: 8px 8px 28px; max-width: 640px; }
 `)
 
-    // ---- 面板开关的共享状态（侧边栏按钮 <-> 浮层面板） ----
+    // ---- 配置存储(内存级;面板设置 Tab 与 DSH 设置页共享) ----
+    const NOISE = ['.git', 'node_modules', '__pycache__', '.venv', 'venv', '.pytest_cache', '.ruff_cache', '.mypy_cache', 'dist', 'build', '.next', '.nuxt', 'coverage', '.idea', 'target']
+    const CFG_DEFAULTS = { hideNoise: true, showSize: true, refStyle: 'relative', peekLines: 60, width: 384 }
+    let cfg = Object.assign({}, CFG_DEFAULTS)
+    const cfgListeners = new Set()
+    const getCfg = () => cfg
+    const notifyCfg = () => { cfgListeners.forEach((fn) => fn(cfg)) }
+    const syncHostCfg = () => {
+      host.call('ws-tree.config', {
+        ignore: cfg.hideNoise ? NOISE.slice() : [],
+        peekMaxLines: cfg.peekLines,
+      }).catch(() => {})
+    }
+    const setCfg = (patch) => { cfg = Object.assign({}, cfg, patch); notifyCfg(); syncHostCfg() }
+    const resetCfg = () => { cfg = Object.assign({}, CFG_DEFAULTS); notifyCfg(); syncHostCfg() }
+    const subscribeCfg = (fn) => { cfgListeners.add(fn); return () => { cfgListeners.delete(fn) } }
+    syncHostCfg()
+
+    // ---- 面板开关的共享状态(侧边栏按钮 <-> 浮层面板) ----
     const openListeners = new Set()
     let open = false
     const getOpen = () => open
     const setOpen = (v) => { open = v; openListeners.forEach((fn) => fn(open)) }
     const subscribeOpen = (fn) => { openListeners.add(fn); return () => { openListeners.delete(fn) } }
 
-    // ---- 输入桥：由 conversation.input.dock 槽位捕获 inputActions ----
+    // ---- 输入桥:由 conversation.input.dock 槽位捕获 inputActions ----
     let bridge = null
     const setBridge = (b) => { bridge = b }
     const getBridge = () => bridge
@@ -285,6 +388,11 @@ return {
     }, el('path', { d: 'M6 4l4 4-4 4', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round' }))
     const headFolderSvg = el('svg', { viewBox: '0 0 16 16', width: 17, height: 17, 'aria-hidden': true },
       el('path', { d: FOLDER_D, fill: 'currentColor' }))
+    const tabFolderIcon = el('svg', { viewBox: '0 0 16 16', width: 13, height: 13, 'aria-hidden': true },
+      el('path', { d: FOLDER_D, fill: 'currentColor' }))
+    const GEAR_D = 'M8 9.9a1.9 1.9 0 1 1 0-3.8 1.9 1.9 0 0 1 0 3.8zM8 4.3V2.9M8 13.1v-1.4M4.3 8H2.9M13.1 8h-1.4M5.2 5.2L4.1 4.1M11.9 11.9l-1.1-1.1M5.2 10.8L4.1 11.9M11.9 4.1l-1.1 1.1'
+    const gearIcon = el('svg', { viewBox: '0 0 16 16', width: 13, height: 13, 'aria-hidden': true },
+      el('path', { d: GEAR_D, fill: 'none', stroke: 'currentColor', strokeWidth: 1.3, strokeLinecap: 'round', strokeLinejoin: 'round' }))
     const insertSvg = el('svg', { viewBox: '0 0 16 16', width: 13, height: 13, 'aria-hidden': true },
       el('path', { d: 'M8 2.5v7.5M5.7 7.5L8 9.8l2.3-2.3M3.5 12.5h9', fill: 'none', stroke: 'currentColor', strokeWidth: 1.4, strokeLinecap: 'round', strokeLinejoin: 'round' }))
     const eyeSvg = el('svg', { viewBox: '0 0 16 16', width: 13, height: 13, 'aria-hidden': true },
@@ -311,7 +419,7 @@ return {
       )
     }
 
-    // ---- 输入桥组件：仅捕获最新的 draft 与 setDraft ----
+    // ---- 输入桥组件:仅捕获最新的 draft 与 setDraft ----
     function DockBridge(props) {
       const input = props.useInput((s) => s)
       const actions = props.inputActions
@@ -330,7 +438,62 @@ return {
       return null
     }
 
-    // ---- 右侧面板 ----
+    // ---- 设置控件 ----
+    function SwitchRow(props) {
+      return el('div', { className: 'dshwe-setrow' },
+        el('div', { className: 'dshwe-setinfo' },
+          el('div', { className: 'dshwe-setlabel' }, props.label),
+          props.caption ? el('div', { className: 'dshwe-setcap' }, props.caption) : null,
+        ),
+        el('button', {
+          type: 'button', role: 'switch', 'aria-checked': props.checked === true,
+          className: 'dshwe-switch', onClick: () => props.onChange(!props.checked),
+          'aria-label': props.label,
+        }),
+      )
+    }
+    function SelectRow(props) {
+      return el('div', { className: 'dshwe-setrow' },
+        el('div', { className: 'dshwe-setinfo' },
+          el('div', { className: 'dshwe-setlabel' }, props.label),
+          props.caption ? el('div', { className: 'dshwe-setcap' }, props.caption) : null,
+        ),
+        el('select', { className: 'dshwe-setselect', value: props.value, onChange: (e) => props.onChange(e.target.value) },
+          props.options.map((o) => el('option', { key: o.value, value: o.value }, o.label))),
+      )
+    }
+    function SettingsView() {
+      const [c, setC] = React.useState(getCfg())
+      React.useEffect(() => subscribeCfg(setC), [])
+      const widthOpts = [
+        { value: '320', label: tr('settings.width.narrow') + ' · 320' },
+        { value: '384', label: tr('settings.width.std') + ' · 384' },
+        { value: '480', label: tr('settings.width.wide') + ' · 480' },
+      ]
+      const refOpts = [
+        { value: 'relative', label: tr('settings.refStyle.rel') },
+        { value: 'absolute', label: tr('settings.refStyle.abs') },
+      ]
+      const lineOpts = [
+        { value: '30', label: '30' },
+        { value: '60', label: '60' },
+        { value: '120', label: '120' },
+      ]
+      return el('div', { className: 'dshwe-set' },
+        el('div', { className: 'dshwe-setsec' }, tr('settings.general')),
+        el(SwitchRow, { label: tr('settings.hideNoise'), caption: tr('settings.hideNoise.desc'), checked: c.hideNoise, onChange: (v) => setCfg({ hideNoise: v }) }),
+        el(SwitchRow, { label: tr('settings.showSize'), checked: c.showSize, onChange: (v) => setCfg({ showSize: v }) }),
+        el(SelectRow, { label: tr('settings.refStyle'), value: c.refStyle, options: refOpts, onChange: (v) => setCfg({ refStyle: v }) }),
+        el(SelectRow, { label: tr('settings.peekLines'), value: String(c.peekLines), options: lineOpts, onChange: (v) => setCfg({ peekLines: Number(v) }) }),
+        el(SelectRow, { label: tr('settings.width'), value: String(c.width), options: widthOpts, onChange: (v) => setCfg({ width: Number(v) }) }),
+        el('div', { className: 'dshwe-setfoot' },
+          el('button', { type: 'button', className: 'dshwe-prevbtn', onClick: resetCfg }, tr('settings.restore')),
+        ),
+        el('div', { className: 'dshwe-setnote' }, tr('settings.note')),
+      )
+    }
+
+    // ---- 右侧面板(顶部 Tab:文件 / 设置) ----
     function Panel(props) {
       const wsState = props.useWorkspaces((s) => s)
       const sessions = props.useSessions((s) => s)
@@ -343,6 +506,9 @@ return {
       const [expanded, setExpanded] = React.useState({})
       const [filter, setFilter] = React.useState('')
       const [preview, setPreview] = React.useState(null)
+      const [tab, setTab] = React.useState('files')
+      const [c, setC] = React.useState(getCfg())
+      React.useEffect(() => subscribeCfg(setC), [])
 
       const recentItem = workspaces.find((w) => w.workspaceId === wsState.recentWorkspaceId)
       const firstItem = workspaces[0]
@@ -372,6 +538,13 @@ return {
         loadDir(root, '')
       }, [root, loadDir])
 
+      // 噪声目录开关变化时,重新加载已展开的目录
+      React.useEffect(() => {
+        if (root === null) return
+        loadDir(root, '')
+        Object.keys(expanded).forEach((rel) => { if (rel !== '') loadDir(root, rel) })
+      }, [c.hideNoise])
+
       const toggle = (rel) => {
         const willExpand = !expanded[rel]
         setExpanded((e) => { const n = { ...e }; if (willExpand) n[rel] = true; else delete n[rel]; return n })
@@ -384,7 +557,7 @@ return {
         Object.keys(expanded).forEach((rel) => { if (rel !== '') loadDir(root, rel) })
       }
 
-      const markerFor = (entry) => root === cwd ? '[file: ' + entry.rel + ']' : '[file: ' + entry.path + ']'
+      const markerFor = (entry) => (c.refStyle === 'relative' && root === cwd) ? '[file: ' + entry.rel + ']' : '[file: ' + entry.path + ']'
 
       const insertMarker = (entry) => {
         const b = getBridge()
@@ -453,7 +626,7 @@ return {
           el('span', { className: 'dshwe-chev-slot' }, isDir ? chevronSvg(isExp) : null),
           iconFor(entry, isExp),
           el('span', { className: 'dshwe-name' }, entry.name),
-          !isDir && entry.size != null ? el('span', { className: 'dshwe-size' }, fmtSize(entry.size)) : null,
+          !isDir && c.showSize && entry.size != null ? el('span', { className: 'dshwe-size' }, fmtSize(entry.size)) : null,
           !isDir ? el('span', {
             className: 'dshwe-eye', title: tr('preview.tip'), role: 'button',
             onMouseDown: (e) => { e.preventDefault(); e.stopPropagation(); openPreview(entry) },
@@ -539,17 +712,7 @@ return {
         )
       }
 
-      return el('div', { className: 'dshwe-panel' },
-        el('div', { className: 'dshwe-head' },
-          el('span', { className: 'dshwe-head-ico' }, headFolderSvg),
-          el('div', { className: 'dshwe-title' }, tr('panel.title') + (rootLabel ? ' · ' + rootLabel : '')),
-          el('button', { type: 'button', className: 'dshwe-icobtn', onClick: refresh, title: tr('refresh'), 'aria-label': tr('refresh') },
-            el('svg', { viewBox: '0 0 16 16', width: 14, height: 14, 'aria-hidden': true },
-              el('path', { d: 'M13.5 8a5.5 5.5 0 1 1-1.61-3.89M13.5 1.5v3h-3', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round' }))),
-          el('button', { type: 'button', className: 'dshwe-icobtn', onClick: () => setOpen(false), title: tr('close'), 'aria-label': tr('close') },
-            el('svg', { viewBox: '0 0 16 16', width: 14, height: 14, 'aria-hidden': true },
-              el('path', { d: 'M4 4l8 8M12 4l-8 8', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round' }))),
-        ),
+      const filesBody = el(React.Fragment, null,
         el('div', { className: 'dshwe-selrow' },
           el('select', { className: 'dshwe-sel', value: root || '', onChange: (e) => setRoot(e.target.value) },
             uniqOptions.map((o) => el('option', { key: o.value, value: o.value }, o.label))),
@@ -568,9 +731,35 @@ return {
         el('div', { className: 'dshwe-tree' }, body),
         pv,
       )
+
+      return el('div', { className: 'dshwe-panel', style: { width: c.width } },
+        el('div', { className: 'dshwe-head' },
+          el('span', { className: 'dshwe-head-ico' }, headFolderSvg),
+          el('div', { className: 'dshwe-title' }, tr('panel.title') + (rootLabel ? ' · ' + rootLabel : '')),
+          el('button', { type: 'button', className: 'dshwe-icobtn', onClick: refresh, title: tr('refresh'), 'aria-label': tr('refresh') },
+            el('svg', { viewBox: '0 0 16 16', width: 14, height: 14, 'aria-hidden': true },
+              el('path', { d: 'M13.5 8a5.5 5.5 0 1 1-1.61-3.89M13.5 1.5v3h-3', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round' }))),
+          el('button', { type: 'button', className: 'dshwe-icobtn', onClick: () => setOpen(false), title: tr('close'), 'aria-label': tr('close') },
+            el('svg', { viewBox: '0 0 16 16', width: 14, height: 14, 'aria-hidden': true },
+              el('path', { d: 'M4 4l8 8M12 4l-8 8', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round' }))),
+        ),
+        el('div', { className: 'dshwe-tabs', role: 'tablist' },
+          el('button', {
+            type: 'button', role: 'tab', 'aria-selected': tab === 'files',
+            className: 'dshwe-tab' + (tab === 'files' ? ' dshwe-tab-on' : ''),
+            onClick: () => setTab('files'),
+          }, tabFolderIcon, el('span', null, tr('tab.files')), el('span', { className: 'dshwe-tab-ind' })),
+          el('button', {
+            type: 'button', role: 'tab', 'aria-selected': tab === 'settings',
+            className: 'dshwe-tab' + (tab === 'settings' ? ' dshwe-tab-on' : ''),
+            onClick: () => setTab('settings'),
+          }, gearIcon, el('span', null, tr('tab.settings')), el('span', { className: 'dshwe-tab-ind' })),
+        ),
+        tab === 'files' ? filesBody : el('div', { className: 'dshwe-tabbody' }, el(SettingsView)),
+      )
     }
 
-    // ---- 浮层入口：右侧面板 + 全屏拖拽提示 + 拖放处理 ----
+    // ---- 浮层入口:右侧面板 + 全屏拖拽提示 + 拖放处理 ----
     function OverlayEntry(props) {
       const [on, setOn] = React.useState(getOpen())
       const [dragging, setDragging] = React.useState(false)
@@ -629,6 +818,10 @@ return {
     slots.inject('conversation.input.dock', () => slots.register(
       { name: 'conversation.input.dock', id: 'workspace-explorer-bridge' },
       (props) => el(DockBridge, props),
+    ))
+    slots.inject('settings.section', () => slots.register(
+      { name: 'settings.section', id: 'workspace-explorer', order: 30, label: () => tr('settings.nav') },
+      () => el('div', { className: 'dshwe-setpage' }, el(SettingsView)),
     ))
   },
 }

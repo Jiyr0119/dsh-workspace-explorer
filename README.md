@@ -34,6 +34,7 @@ Inspired by the VS Code / Cursor project tree, filling the gap of a missing dire
 ## Features
 
 - 📂 **Right-side floating panel** — shows the file tree of the current workspace (session cwd); switch workspaces from the dropdown, or register any folder with `+`
+- 🗂 **Top tab bar** — click at the top of the panel to switch between Files and Settings; the Settings page tunes behavior live (hide noise dirs, show sizes, reference format, preview lines, panel width) and mirrors into DSH Settings → Workspace Explorer
 - 🗂 **Lazy-loading tree** — directories load on demand; noise dirs (`node_modules`, `.git`, `dist`, `__pycache__`, …) are hidden automatically
 - 🎨 **File-type icons** — filled, color-coded document badges per extension (TS / JS / Python / JSON / Markdown / image / config / shell, …); amber folders that brighten when expanded
 - 🖱 **Click to insert** — click a file row to append a `[file: relative-path]` reference to the composer; after sending, the model resolves it with its `read` tool
@@ -59,8 +60,10 @@ A *dynamic Cordis plugin*: no build step, no config changes.
 **Way 2 · npm source package**
 `npm install @jiyr0119/dsh-workspace-explorer` — the package ships `dynamic/host.js` / `dynamic/client.js` for the Way-1 paste flow, with semver releases.
 
-**Way 3 · Storefront (`dsh plugin add` / dsh-market) — native install (v0.2.0)**
-`dsh plugin --profile web add @jiyr0119/dsh-workspace-explorer@latest` (or the market one-click button). The package now ships a native host half (`lib/index.js`, webServer JSON routes) **and** a browser bundle (`lib/client.js` via `dsh.plugin.json`), so the browser panel mounts after install. The 0.2.0 build passes; last-mile verification against a real DSH mount is pending (see [`docs/native-package.md`](./docs/native-package.md)). The dynamic paste flow (Way 1) remains the zero-build option.
+**Way 3 · Storefront (`dsh plugin add` / dsh-market) — native install (v0.3.0)**
+`dsh plugin --profile web add -w @jiyr0119/dsh-workspace-explorer@latest` (or the market one-click button). The package ships a native host half (`lib/index.js`, webServer JSON routes incl. `/dsh-we/api/config`) **and** a browser bundle (`lib/client.js` via `dsh.plugin.json`) with the full interaction — top tab bar (Files / Settings) + a live settings page. The 0.3.0 build passes; last-mile verification against a real DSH mount is pending (see [`docs/native-package.md`](./docs/native-package.md)). The dynamic paste flow (Way 1) remains the zero-build option.
+
+> ℹ️ **pnpm note**: modern pnpm (9/10) refuses to add a dependency at the workspace root (`ERR_PNPM_ADDING_TO_ROOT`), hence the `-w` flag above. Alternative: create `~/.dsh/profiles/web/.npmrc` containing `ignore-workspace-root-check=true`.
 
 > ⚠️ **Common misconception**: a listing alone never auto-installs anything — users still click install. With Way 3 the panel now appears after install (native bundle); before 0.2.0, storefront installs only mounted the host entry with no UI.
 
@@ -71,6 +74,7 @@ See [`docs/install.md`](./docs/install.md) for details.
 1. Click the 📁 "Files" button at the bottom of the sidebar to open the panel.
 2. Expand directories to browse files.
 3. Click a file, or drag it into the composer, then send.
+4. Use the **Settings** tab at the top of the panel (or DSH Settings → Workspace Explorer) to adjust panel behavior.
 
 ## Project Structure
 
@@ -111,7 +115,7 @@ dsh-workspace-explorer/
 
 ## Version
 
-Current version **v0.1** — first usable release; features and visuals aligned with DSH's native UI.
+Current version **v0.3** — top tab bar (Files / Settings) + live settings page; features and visuals aligned with DSH's native UI.
 See [CHANGELOG.md](./CHANGELOG.md) for release notes.
 
 ## Roadmap

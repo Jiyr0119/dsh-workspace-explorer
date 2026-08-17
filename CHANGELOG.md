@@ -1,5 +1,15 @@
 # Changelog
 
+## [v0.3.0] - 2026-08-17
+
+### 交互改造 Interaction overhaul (dsh-better-sidebar style)
+
+- 面板**顶部 Tab 栏**(文件 / 设置),点击顶部切换页面 / Top **tab bar** (Files / Settings) at the top of the panel.
+- **设置页**逐项开关/下拉,实时生效:隐藏噪声目录、显示文件大小、引用格式(相对/绝对)、预览行数、面板宽度 / **Settings page** with live toggles & selects: hide noise dirs, show sizes, reference format, preview lines, panel width.
+- 设置同步进 DSH 设置壳(`设置 → 工作区文件`)/ Settings also mirrored into the DSH Settings shell (Settings → Workspace Explorer).
+- Host 新增 `ws-tree.config` RPC(动态版)与 `/dsh-we/api/config` 路由(原生版):噪声目录 / 预览行数可调 / New `ws-tree.config` RPC (dynamic) and `/dsh-we/api/config` route (native): noise dirs / preview lines tunable.
+- **原生包同步新交互**:`src/client/index.tsx` 重写为顶部 Tab + 设置页,`lib/index.js` + `lib/client.js` 重建(56KB)/ Native bundle rebuilt with the new interaction.
+
 ## [v0.2.0] - 2026-08-17
 
 ### 原生化 Native package

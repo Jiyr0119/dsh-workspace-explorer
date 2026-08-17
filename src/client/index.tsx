@@ -1,9 +1,10 @@
 /**
- * dsh-workspace-explorer — Client 半区(原生包)
+ * dsh-workspace-explorer — Client 半区(原生包 v0.3)
  *
+ * 交互对标 dsh-better-sidebar:面板顶部 Tab 栏(文件 / 设置)切换页面;
+ * 设置页逐项开关/下拉实时生效;并注册 DSH 设置壳的 settings.section 页。
+ * 通过 /dsh-we/api/* JSON 路由调用 Host(list / peek / config)。
  * 浏览器 bundle(src/client/index.tsx → lib/client.js,__ModuleLoader__ 格式)。
- * 通过 /dsh-we/api/* JSON 路由调用 Host;注册 shell.overlay / sidebar.footer.action /
- * conversation.input.dock 三个槽位,与动态版功能一致(树/搜索/预览/i18n/拖拽)。
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import styles from './panel.module.css'
@@ -21,7 +22,7 @@ async function api<T = unknown>(method: string, payload: Record<string, unknown>
   return res.json() as Promise<T>
 }
 
-// ---------- 国际化(跟随 DSH 界面语言,与动态版一致) ----------
+// ---------- 国际化(跟随 DSH 界面语言) ----------
 const NS = 'dsh-workspace-explorer'
 const DICTS: Record<string, Record<string, string>> = {
   zh: {
@@ -31,11 +32,20 @@ const DICTS: Record<string, Record<string, string>> = {
     'hit.none': '没有匹配「{q}」的文件(搜索范围:已加载目录)', truncated: '已截断,仅显示前 {n} 项',
     loading: '加载中…', 'load.fail': '加载失败: ', read: '读取中…', 'read.fail': '读取失败: ',
     'too.large': '文件过大({s}),仅支持插入引用', binary: '二进制文件,仅支持插入引用',
-    'lines.tail': '…(共 {n} 行,仅显示前 60 行)', 'btn.ref': '插入引用', 'btn.content': '插入内容',
+    'lines.tail': '…(共 {n} 行,仅显示前 {m} 行)', 'btn.ref': '插入引用', 'btn.content': '插入内容',
     'btn.content.tip': '把文件内容插入输入框', 'btn.content.no': '文件过大或二进制,无法内联',
     'sidebar.tooltip': '工作区文件', 'sidebar.label': '文件', refresh: '刷新', close: '关闭',
     'close.preview': '关闭预览', 'row.tip': '点击或拖拽到输入框', 'preview.tip': '预览 (P)',
     'insert.tip': '插入引用', 'drop.hint': '松开以插入文件引用到输入框', 'add.ws': '添加工作区',
+    'tab.files': '文件', 'tab.settings': '设置',
+    'settings.title': '面板设置', 'settings.general': '通用',
+    'settings.hideNoise': '隐藏噪声目录', 'settings.hideNoise.desc': '.git · node_modules · dist 等',
+    'settings.showSize': '显示文件大小',
+    'settings.refStyle': '文件引用格式', 'settings.refStyle.rel': '相对路径', 'settings.refStyle.abs': '绝对路径',
+    'settings.peekLines': '预览行数',
+    'settings.width': '面板宽度', 'settings.width.narrow': '紧凑', 'settings.width.std': '标准', 'settings.width.wide': '宽松',
+    'settings.restore': '恢复默认', 'settings.note': '配置在本次会话内生效,重启插件后恢复默认。',
+    'settings.nav': '工作区文件',
   },
   en: {
     'panel.title': 'Workspace Files', 'ws.current': 'Current dir', 'search.ph': 'Search files (loaded dirs only)…',
@@ -44,11 +54,20 @@ const DICTS: Record<string, Record<string, string>> = {
     'hit.none': 'No files match "{q}" (search covers loaded dirs)', truncated: 'Truncated: showing the first {n}',
     loading: 'Loading…', 'load.fail': 'Load failed: ', read: 'Reading…', 'read.fail': 'Read failed: ',
     'too.large': 'File too large ({s}); reference only', binary: 'Binary file; reference only',
-    'lines.tail': '…({n} lines total, showing the first 60)', 'btn.ref': 'Insert reference', 'btn.content': 'Insert content',
+    'lines.tail': '…({n} lines total, showing the first {m})', 'btn.ref': 'Insert reference', 'btn.content': 'Insert content',
     'btn.content.tip': 'Insert the file content into the composer', 'btn.content.no': 'Too large or binary — cannot inline',
     'sidebar.tooltip': 'Workspace Files', 'sidebar.label': 'Files', refresh: 'Refresh', close: 'Close',
     'close.preview': 'Close preview', 'row.tip': 'click or drag to the composer', 'preview.tip': 'Preview (P)',
     'insert.tip': 'Insert reference', 'drop.hint': 'Release to insert the file reference into the composer', 'add.ws': 'Add workspace',
+    'tab.files': 'Files', 'tab.settings': 'Settings',
+    'settings.title': 'Panel settings', 'settings.general': 'General',
+    'settings.hideNoise': 'Hide noise dirs', 'settings.hideNoise.desc': '.git · node_modules · dist …',
+    'settings.showSize': 'Show file sizes',
+    'settings.refStyle': 'File reference format', 'settings.refStyle.rel': 'Relative path', 'settings.refStyle.abs': 'Absolute path',
+    'settings.peekLines': 'Preview lines',
+    'settings.width': 'Panel width', 'settings.width.narrow': 'Narrow', 'settings.width.std': 'Standard', 'settings.width.wide': 'Wide',
+    'settings.restore': 'Reset to defaults', 'settings.note': 'Settings apply for this run; they reset when the plugin restarts.',
+    'settings.nav': 'Workspace Explorer',
   },
 }
 
@@ -61,6 +80,7 @@ interface LocaleLike {
 const FOLDER_D = 'M1.5 2.5A1.5 1.5 0 0 1 3 1h3.2l1.6 2H13a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 13 13H3a1.5 1.5 0 0 1-1.5-1.5v-9z'
 const DOC_BODY = 'M4.3 1.7h5.3l2.7 2.7v8.9a1 1 0 0 1-1 1H4.3a1 1 0 0 1-1-1V2.7a1 1 0 0 1 1-1z'
 const DOC_FOLD = 'M9.6 1.7L12.3 4.4H9.6z'
+const GEAR_D = 'M8 9.9a1.9 1.9 0 1 1 0-3.8 1.9 1.9 0 0 1 0 3.8zM8 4.3V2.9M8 13.1v-1.4M4.3 8H2.9M13.1 8h-1.4M5.2 5.2L4.1 4.1M11.9 11.9l-1.1-1.1M5.2 10.8L4.1 11.9M11.9 4.1l-1.1 1.1'
 const GLYPHS: Record<string, string> = {
   code: 'M6.4 6.1L4.9 8l1.5 1.9M9.6 6.1l1.5 1.9L9.6 9.9',
   image: 'M3.6 12.4l2.7-2.7 1.8 1.8 1.5-1.5 2.8 2.4M5.4 6.4a1.1 1.1 0 1 0 0-2.2 1.1 1.1 0 0 0 0 2.2z',
@@ -97,6 +117,29 @@ interface PeekResult {
   ok: boolean; error?: string; tooLarge?: boolean; binary?: boolean; size?: number
   lineCount?: number; content?: string; truncatedLines?: boolean
 }
+interface ConfigResult { ok: boolean; ignore?: string[]; max?: number; peekMaxLines?: number }
+
+// ---------- 运行期配置(内存级;面板设置 Tab 与 DSH 设置页共享) ----------
+const NOISE = ['.git', 'node_modules', '__pycache__', '.venv', 'venv', '.pytest_cache', '.ruff_cache', '.mypy_cache', 'dist', 'build', '.next', '.nuxt', 'coverage', '.idea', 'target']
+interface WsCfg {
+  hideNoise: boolean
+  showSize: boolean
+  refStyle: 'relative' | 'absolute'
+  peekLines: number
+  width: number
+}
+const CFG_DEFAULTS: WsCfg = { hideNoise: true, showSize: true, refStyle: 'relative', peekLines: 60, width: 384 }
+let cfg: WsCfg = { ...CFG_DEFAULTS }
+const cfgListeners = new Set<(c: WsCfg) => void>()
+const getCfg = (): WsCfg => cfg
+const notifyCfg = (): void => { cfgListeners.forEach((fn) => fn(cfg)) }
+const syncHostCfg = (): void => {
+  void api<ConfigResult>('config', { ignore: cfg.hideNoise ? NOISE.slice() : [], peekMaxLines: cfg.peekLines }).catch(() => {})
+}
+const setCfg = (patch: Partial<WsCfg>): void => { cfg = { ...cfg, ...patch }; notifyCfg(); syncHostCfg() }
+const resetCfg = (): void => { cfg = { ...CFG_DEFAULTS }; notifyCfg(); syncHostCfg() }
+const subscribeCfg = (fn: (c: WsCfg) => void): (() => void) => { cfgListeners.add(fn); return () => { cfgListeners.delete(fn) } }
+syncHostCfg()
 
 const fmtSize = (n: number | null | undefined): string => {
   if (n == null) return ''
@@ -124,7 +167,12 @@ function ChevronSvg({ open }: { open: boolean }) {
     <path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 }
-
+function TabFolderSvg() {
+  return <svg viewBox="0 0 16 16" width={13} height={13} aria-hidden="true"><path d={FOLDER_D} fill="currentColor" /></svg>
+}
+function GearSvg() {
+  return <svg viewBox="0 0 16 16" width={13} height={13} aria-hidden="true"><path d={GEAR_D} fill="none" stroke="currentColor" strokeWidth={1.3} strokeLinecap="round" strokeLinejoin="round" /></svg>
+}
 function iconFor(entry: WsEntry, open: boolean): React.ReactNode {
   if (entry.type === 'directory') return <FolderSvg open={open} />
   const meta = FILE_META[extOf(entry.name)] ?? DEFAULT_META
@@ -174,7 +222,66 @@ function DockBridge(props: { useInput?: (s: unknown) => unknown; inputActions?: 
   return null
 }
 
-// ---------- 右侧面板 ----------
+// ---------- 设置控件 ----------
+function SwitchRow(props: { label: string; caption?: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <div className={C('dshwe-setrow')}>
+      <div className={C('dshwe-setinfo')}>
+        <div className={C('dshwe-setlabel')}>{props.label}</div>
+        {props.caption ? <div className={C('dshwe-setcap')}>{props.caption}</div> : null}
+      </div>
+      <button type="button" role="switch" aria-checked={props.checked} className={C('dshwe-switch')}
+        onClick={() => props.onChange(!props.checked)} aria-label={props.label} />
+    </div>
+  )
+}
+function SelectRow(props: { label: string; caption?: string; value: string; options: Array<{ value: string; label: string }>; onChange: (v: string) => void }) {
+  return (
+    <div className={C('dshwe-setrow')}>
+      <div className={C('dshwe-setinfo')}>
+        <div className={C('dshwe-setlabel')}>{props.label}</div>
+        {props.caption ? <div className={C('dshwe-setcap')}>{props.caption}</div> : null}
+      </div>
+      <select className={C('dshwe-setselect')} value={props.value} onChange={(e) => props.onChange(e.target.value)}>
+        {props.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+    </div>
+  )
+}
+function SettingsView() {
+  const [c, setC] = useState(getCfg())
+  useEffect(() => subscribeCfg(setC), [])
+  const widthOpts = [
+    { value: '320', label: `${tr('settings.width.narrow')} · 320` },
+    { value: '384', label: `${tr('settings.width.std')} · 384` },
+    { value: '480', label: `${tr('settings.width.wide')} · 480` },
+  ]
+  const refOpts = [
+    { value: 'relative', label: tr('settings.refStyle.rel') },
+    { value: 'absolute', label: tr('settings.refStyle.abs') },
+  ]
+  const lineOpts = [
+    { value: '30', label: '30' },
+    { value: '60', label: '60' },
+    { value: '120', label: '120' },
+  ]
+  return (
+    <div className={C('dshwe-set')}>
+      <div className={C('dshwe-setsec')}>{tr('settings.general')}</div>
+      <SwitchRow label={tr('settings.hideNoise')} caption={tr('settings.hideNoise.desc')} checked={c.hideNoise} onChange={(v) => setCfg({ hideNoise: v })} />
+      <SwitchRow label={tr('settings.showSize')} checked={c.showSize} onChange={(v) => setCfg({ showSize: v })} />
+      <SelectRow label={tr('settings.refStyle')} value={c.refStyle} options={refOpts} onChange={(v) => setCfg({ refStyle: v as 'relative' | 'absolute' })} />
+      <SelectRow label={tr('settings.peekLines')} value={String(c.peekLines)} options={lineOpts} onChange={(v) => setCfg({ peekLines: Number(v) })} />
+      <SelectRow label={tr('settings.width')} value={String(c.width)} options={widthOpts} onChange={(v) => setCfg({ width: Number(v) })} />
+      <div className={C('dshwe-setfoot')}>
+        <button type="button" className={C('dshwe-prevbtn')} onClick={resetCfg}>{tr('settings.restore')}</button>
+      </div>
+      <div className={C('dshwe-setnote')}>{tr('settings.note')}</div>
+    </div>
+  )
+}
+
+// ---------- 右侧面板(顶部 Tab:文件 / 设置) ----------
 function Panel(props: {
   useWorkspaces: (s: unknown) => unknown
   useSessions: (s: unknown) => unknown
@@ -191,6 +298,9 @@ function Panel(props: {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [filter, setFilter] = useState('')
   const [preview, setPreview] = useState<{ entry: WsEntry; loading: boolean; data: PeekResult | null; error: string | null } | null>(null)
+  const [tab, setTab] = useState<'files' | 'settings'>('files')
+  const [c, setC] = useState(getCfg())
+  useEffect(() => subscribeCfg(setC), [])
 
   const recentItem = workspaces.find((w) => w.workspaceId === wsState.recentWorkspaceId)
   const firstItem = workspaces[0]
@@ -218,6 +328,14 @@ function Panel(props: {
     void loadDir(root, '')
   }, [root, loadDir])
 
+  // 噪声目录开关变化时,重新加载已展开的目录
+  useEffect(() => {
+    if (root === null) return
+    void loadDir(root, '')
+    Object.keys(expanded).forEach((rel) => { if (rel !== '') void loadDir(root, rel) })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [c.hideNoise])
+
   const toggle = (rel: string): void => {
     const willExpand = !expanded[rel]
     setExpanded((e) => { const n = { ...e }; if (willExpand) n[rel] = true; else delete n[rel]; return n })
@@ -228,7 +346,7 @@ function Panel(props: {
     void loadDir(root, '')
     Object.keys(expanded).forEach((rel) => { if (rel !== '') void loadDir(root, rel) })
   }
-  const markerFor = (entry: WsEntry): string => root === cwd ? `[file: ${entry.rel}]` : `[file: ${entry.path}]`
+  const markerFor = (entry: WsEntry): string => (c.refStyle === 'relative' && root === cwd) ? `[file: ${entry.rel}]` : `[file: ${entry.path}]`
   const insertMarker = (entry: WsEntry): void => { const b = getBridge(); if (b) b.insert(markerFor(entry)) }
 
   const openPreview = async (entry: WsEntry): Promise<void> => {
@@ -252,6 +370,10 @@ function Panel(props: {
     ev.dataTransfer.setData(MARKER, JSON.stringify({ path: entry.path, rel: entry.rel, name: entry.name }))
     ev.dataTransfer.effectAllowed = 'copy'
     props.onDraggingChange(true)
+  }
+
+  const addWorkspace = async (): Promise<void> => {
+    // 原生版暂不开放"选择文件夹注册工作区"(依赖 workspaces 服务,后续版本补充)
   }
 
   const q = filter.trim().toLowerCase()
@@ -281,7 +403,7 @@ function Panel(props: {
         <span className={C('dshwe-chev-slot')}>{isDir ? <ChevronSvg open={isExp} /> : null}</span>
         {iconFor(entry, isExp)}
         <span className={C('dshwe-name')}>{entry.name}</span>
-        {!isDir && entry.size != null ? <span className={C('dshwe-size')}>{fmtSize(entry.size)}</span> : null}
+        {!isDir && c.showSize && entry.size != null ? <span className={C('dshwe-size')}>{fmtSize(entry.size)}</span> : null}
         {!isDir ? (
           <span className={C('dshwe-eye')} title={tr('preview.tip')} role="button"
             onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); void openPreview(entry) }}
@@ -312,10 +434,6 @@ function Panel(props: {
     if (data.loading) rows.push(<div key="load" className={C('dshwe-note')}><span className={C('dshwe-spin')} />{tr('loading')}</div>)
     if (data.error) rows.push(<div key="err" className={C('dshwe-note dshwe-note-err')}>{tr('load.fail')}{data.error}</div>)
     return rows
-  }
-
-  const addWorkspace = async (): Promise<void> => {
-    // 原生版暂不开放"选择文件夹注册工作区"(依赖 workspaces 服务,后续版本补充)
   }
 
   let body: React.ReactNode
@@ -356,7 +474,7 @@ function Panel(props: {
     else if (preview.error) contentArea = <div className={C('dshwe-note dshwe-note-err')}>{tr('read.fail')}{preview.error}</div>
     else if (d?.tooLarge) contentArea = <div className={C('dshwe-note')}>{tr('too.large', { s: fmtSize(d.size) })}</div>
     else if (d?.binary) contentArea = <div className={C('dshwe-note')}>{tr('binary')}</div>
-    else contentArea = <pre className={C('dshwe-preview-pre')}>{d?.content}{d?.truncatedLines ? `\n${tr('lines.tail', { n: d.lineCount ?? 0 })}` : ''}</pre>
+    else contentArea = <pre className={C('dshwe-preview-pre')}>{d?.content}{d?.truncatedLines ? `\n${tr('lines.tail', { n: d.lineCount ?? 0, m: c.peekLines })}` : ''}</pre>
     const canInline = !preview.loading && !preview.error && !!d && !d.tooLarge && !d.binary && (d.size ?? 0) <= 32768
     pv = (
       <div className={C('dshwe-preview')}>
@@ -377,20 +495,8 @@ function Panel(props: {
     )
   }
 
-  return (
-    <div className={C('dshwe-panel')}>
-      <div className={C('dshwe-head')}>
-        <span className={C('dshwe-head-ico')}>
-          <svg viewBox="0 0 16 16" width={17} height={17} aria-hidden="true"><path d={FOLDER_D} fill="currentColor" /></svg>
-        </span>
-        <div className={C('dshwe-title')}>{tr('panel.title')}{rootLabel ? ` · ${rootLabel}` : ''}</div>
-        <button type="button" className={C('dshwe-icobtn')} onClick={refresh} title={tr('refresh')} aria-label={tr('refresh')}>
-          <svg viewBox="0 0 16 16" width={14} height={14} aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.61-3.89M13.5 1.5v3h-3" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" /></svg>
-        </button>
-        <button type="button" className={C('dshwe-icobtn')} onClick={() => setOpen(false)} title={tr('close')} aria-label={tr('close')}>
-          <svg viewBox="0 0 16 16" width={14} height={14} aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" /></svg>
-        </button>
-      </div>
+  const filesBody = (
+    <>
       <div className={C('dshwe-selrow')}>
         <select className={C('dshwe-sel')} value={root ?? ''} onChange={(e) => setRoot(e.target.value)}>
           {uniqOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -408,6 +514,36 @@ function Panel(props: {
       <div className={C('dshwe-hintline')}><span>↩</span>{tr('hint')}</div>
       <div className={C('dshwe-tree')}>{body}</div>
       {pv}
+    </>
+  )
+
+  return (
+    <div className={C('dshwe-panel')} style={{ width: c.width }}>
+      <div className={C('dshwe-head')}>
+        <span className={C('dshwe-head-ico')}>
+          <svg viewBox="0 0 16 16" width={17} height={17} aria-hidden="true"><path d={FOLDER_D} fill="currentColor" /></svg>
+        </span>
+        <div className={C('dshwe-title')}>{tr('panel.title')}{rootLabel ? ` · ${rootLabel}` : ''}</div>
+        <button type="button" className={C('dshwe-icobtn')} onClick={refresh} title={tr('refresh')} aria-label={tr('refresh')}>
+          <svg viewBox="0 0 16 16" width={14} height={14} aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.61-3.89M13.5 1.5v3h-3" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" /></svg>
+        </button>
+        <button type="button" className={C('dshwe-icobtn')} onClick={() => setOpen(false)} title={tr('close')} aria-label={tr('close')}>
+          <svg viewBox="0 0 16 16" width={14} height={14} aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" /></svg>
+        </button>
+      </div>
+      <div className={C('dshwe-tabs')} role="tablist">
+        <button type="button" role="tab" aria-selected={tab === 'files'}
+          className={C('dshwe-tab') + (tab === 'files' ? ` ${C('dshwe-tab-on')}` : '')}
+          onClick={() => setTab('files')}>
+          <TabFolderSvg /><span>{tr('tab.files')}</span><span className={C('dshwe-tab-ind')} />
+        </button>
+        <button type="button" role="tab" aria-selected={tab === 'settings'}
+          className={C('dshwe-tab') + (tab === 'settings' ? ` ${C('dshwe-tab-on')}` : '')}
+          onClick={() => setTab('settings')}>
+          <GearSvg /><span>{tr('tab.settings')}</span><span className={C('dshwe-tab-ind')} />
+        </button>
+      </div>
+      {tab === 'files' ? filesBody : <div className={C('dshwe-tabbody')}><SettingsView /></div>}
     </div>
   )
 }
@@ -468,7 +604,7 @@ let tr = (k: string, vars?: Record<string, string | number>): string => {
 
 interface SlotsLike {
   inject(name: string, fn: () => unknown): void
-  register(options: { name: string; id: string }, component: (props: never) => React.ReactNode): unknown
+  register(options: { name: string; id: string; order?: number; label?: string | (() => string) }, component: (props: never) => React.ReactNode): unknown
 }
 interface CtxLike {
   get(name: string): unknown
@@ -511,5 +647,9 @@ export function apply(ctx: CtxLike): void {
   slots.inject('conversation.input.dock', () => slots.register(
     { name: 'conversation.input.dock', id: 'workspace-explorer-bridge' },
     (props: never) => <DockBridge {...(props as { useInput?: (s: unknown) => unknown; inputActions?: { setDraft(d: string): void } })} />,
+  ))
+  slots.inject('settings.section', () => slots.register(
+    { name: 'settings.section', id: 'workspace-explorer', order: 30, label: () => tr('settings.nav') },
+    () => <div className={C('dshwe-setpage')}><SettingsView /></div>,
   ))
 }

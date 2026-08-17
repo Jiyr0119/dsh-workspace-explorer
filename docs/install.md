@@ -6,9 +6,9 @@
 |---|---|---|
 | **一、动态粘贴(推荐)** | `cordis_define` 粘贴 `dynamic/host.js` + `dynamic/client.js` | ✅ 完整 UI |
 | **二、npm 源码包** | `npm i @jiyr0119/dsh-workspace-explorer`,再按方式一粘贴 | ✅ 完整 UI |
-| **三、商店一键安装** | 列表/market 收录后 `dsh plugin add` 或市场按钮 | ⚠️ Host 挂载成功,**UI 待原生改造**(见 `native-package.md`) |
+| **三、商店一键安装** | 列表/market 收录后 `dsh plugin add -w` 或市场按钮 | ✅ 原生 bundle 含完整 UI(顶部 Tab + 设置页,v0.3.0+) |
 
-> ⚠️ **常见误解**:插件市场收录 ≠ 插件自动出现在用户浏览器。收录 = 用户能浏览条目 + 执行安装命令;**目前只有方式一/二有完整 UI**。原生双包改造(host `TypertRemoteService` + client 浏览器包,见 `native-package.md`)完成后,方式三才会即装即用。
+> ⚠️ **常见误解**:插件市场收录 ≠ 插件自动出现在用户浏览器。收录 = 用户能浏览条目 + 执行安装命令。**v0.3.0 起方式三即装即用**(原生 bundle 含完整 UI);注意现代 pnpm 需在命令加 `-w`(或在 profile 的 `.npmrc` 写 `ignore-workspace-root-check=true`)。
 
 ## 方式一:动态插件(当前形态,零构建)
 

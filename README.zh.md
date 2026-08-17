@@ -34,6 +34,7 @@
 ## 功能特性
 
 - 📂 **右侧浮层面板** — 展示当前工作区(会话 cwd)的目录文件树;顶部下拉可切换其他工作区,或用 `+` 选择文件夹注册为新工作区
+- 🗂 **顶部 Tab 栏** — 面板顶部点击「文件 / 设置」切换页面;设置页实时调节行为(隐藏噪声目录、显示大小、引用格式、预览行数、面板宽度),并同步进 DSH 设置 → 工作区文件
 - 🗂 **懒加载展开** — 目录按需加载,自动隐藏 `node_modules` / `.git` / `dist` / `__pycache__` 等噪声目录
 - 🎨 **文件类型图标** — 按扩展名着色的实心文档徽标(TS / JS / Python / JSON / Markdown / 图片 / 配置 / 脚本等),目录为琥珀色文件夹、展开态高亮
 - 🖱 **点击插入** — 点击文件行,在输入框末尾追加 `[file: 相对路径]` 引用,发送后模型会用 `read` 读取真实内容
@@ -59,8 +60,10 @@
 **方式二 · npm 源码包**
 `npm install @jiyr0119/dsh-workspace-explorer` — 内含 `dynamic/host.js` / `dynamic/client.js`,按方式一粘贴即可,版本随 semver 发布。
 
-**方式三 · 商店(`dsh plugin add` / dsh-market)— 原生安装(v0.2.0)**
-`dsh plugin --profile web add @jiyr0119/dsh-workspace-explorer@latest`(或市场一键按钮)。包现在同时提供原生 Host 半区(`lib/index.js`,webServer JSON 路由)和浏览器 bundle(`lib/client.js` 经 `dsh.plugin.json`),安装后**浏览器面板即可挂载**。0.2.0 构建已通过;真实 DSH 挂载的最后一公里验证待完成(见 [`docs/native-package.md`](./docs/native-package.md))。动态粘贴(方式一)仍是零构建选项。
+**方式三 · 商店(`dsh plugin add` / dsh-market)— 原生安装(v0.3.0)**
+`dsh plugin --profile web add -w @jiyr0119/dsh-workspace-explorer@latest`(或市场一键按钮)。包同时提供原生 Host 半区(`lib/index.js`,webServer JSON 路由,含 `/dsh-we/api/config`)和浏览器 bundle(`lib/client.js` 经 `dsh.plugin.json`),**含完整交互:顶部 Tab 栏(文件/设置)+ 实时设置页**。0.3.0 构建已通过;真实 DSH 挂载的最后一公里验证待完成(见 [`docs/native-package.md`](./docs/native-package.md))。动态粘贴(方式一)仍是零构建选项。
+
+> ℹ️ **pnpm 提示**:现代 pnpm(9/10)会拒绝在 workspace root 直接 add(`ERR_PNPM_ADDING_TO_ROOT`),故命令带 `-w`。另一种做法:在 `~/.dsh/profiles/web/.npmrc` 写入 `ignore-workspace-root-check=true`。
 
 > ⚠️ **常见误解**:收录本身不会自动安装任何东西 —— 用户仍需点安装。有了方式三,安装后面板就会出现(原生 bundle);0.2.0 之前商店安装只会挂载 Host 入口、无 UI。
 
@@ -71,6 +74,7 @@
 1. 点击侧边栏底部的 📁「文件」按钮打开面板
 2. 展开目录浏览文件
 3. 点击文件,或把它拖进聊天输入框,然后发送
+4. 用面板顶部的「设置」Tab(或 DSH 设置 → 工作区文件)调整面板行为
 
 ## 目录结构
 
@@ -111,7 +115,7 @@ dsh-workspace-explorer/
 
 ## 版本
 
-当前版本 **v0.1** — 首个可用版本,功能与视觉对齐 DSH 原生 UI。
+当前版本 **v0.3** — 顶部 Tab 栏(文件/设置)+ 实时设置页,功能与视觉对齐 DSH 原生 UI。
 变更记录见 [CHANGELOG.md](./CHANGELOG.md)。
 
 ## Roadmap

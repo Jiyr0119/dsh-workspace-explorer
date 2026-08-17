@@ -1,6 +1,6 @@
 {
   "name": "@jiyr0119/dsh-workspace-explorer",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "DeepSeek Harness 工作区文件资源管理器(原生插件):右侧面板展示工作区目录树,点击/拖拽插入文件引用,含搜索/预览/国际化 | Native DSH plugin: workspace file-tree panel with click/drag references, search, preview, i18n.",
   "license": "MIT",
   "type": "module",

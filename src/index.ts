@@ -42,10 +42,14 @@ declare module 'cordis' {
   }
 }
 
-const IGNORED = new Set(['.git', 'node_modules', '__pycache__', '.venv', 'venv', '.pytest_cache', '.ruff_cache', '.mypy_cache', 'dist', 'build', '.next', '.nuxt', 'coverage', '.idea', 'target'])
-const MAX = 400
-const PEEK_MAX_BYTES = 200 * 1024
-const PEEK_MAX_LINES = 60
+const DEFAULT_IGNORED = ['.git', 'node_modules', '__pycache__', '.venv', 'venv', '.pytest_cache', '.ruff_cache', '.mypy_cache', 'dist', 'build', '.next', '.nuxt', 'coverage', '.idea', 'target']
+// 运行期配置:客户端 POST /dsh-we/api/config 可实时调整(噪声目录 / 最大条目 / 预览行数)
+const cfg = {
+  ignore: [...DEFAULT_IGNORED],
+  max: 400,
+  peekMaxBytes: 200 * 1024,
+  peekMaxLines: 60,
+}
 
 async function readJsonBody(req: WsHttpRequest): Promise<Record<string, unknown>> {
   let raw = ''
@@ -69,7 +73,7 @@ async function listDir(abs: string, baseRel: string): Promise<{ entries: WsEntry
   const out: WsEntry[] = []
   for (const d of dirents) {
     if (d.name === '.DS_Store') continue
-    if (d.isDirectory() && IGNORED.has(d.name)) continue
+    if (d.isDirectory() && cfg.ignore.includes(d.name)) continue
     const target = join(abs, d.name)
     let size: number | null = null
     if (d.isFile()) {
@@ -78,14 +82,25 @@ async function listDir(abs: string, baseRel: string): Promise<{ entries: WsEntry
     out.push({ name: d.name, type: d.isDirectory() ? 'directory' : 'file', path: target, rel: baseRel === '' ? d.name : baseRel + '/' + d.name, size })
   }
   out.sort((a, b) => (a.type !== b.type ? (a.type === 'directory' ? -1 : 1) : a.name.localeCompare(b.name)))
-  const truncated = out.length > MAX
-  return { entries: truncated ? out.slice(0, MAX) : out, truncated }
+  const truncated = out.length > cfg.max
+  return { entries: truncated ? out.slice(0, cfg.max) : out, truncated }
 }
 
 export default {
   inject: ['webServer'],
   apply(ctx: Context) {
     ctx.webServer.register([
+      {
+        kind: 'exact',
+        path: '/dsh-we/api/config',
+        handler: async (req, res) => {
+          const body = await readJsonBody(req)
+          if (Array.isArray(body.ignore)) cfg.ignore = body.ignore.map((s) => String(s)).filter((s) => s !== '')
+          if (typeof body.max === 'number' && body.max >= 1 && body.max <= 2000) cfg.max = Math.floor(body.max)
+          if (typeof body.peekMaxLines === 'number' && body.peekMaxLines >= 10 && body.peekMaxLines <= 500) cfg.peekMaxLines = Math.floor(body.peekMaxLines)
+          return writeJson(res, { ok: true, ignore: cfg.ignore, max: cfg.max, peekMaxLines: cfg.peekMaxLines })
+        },
+      },
       {
         kind: 'exact',
         path: '/dsh-we/api/list',
@@ -117,14 +132,14 @@ export default {
           try {
             const info = await stat(path)
             const size = info.size
-            if (size > PEEK_MAX_BYTES) return writeJson(res, { ok: true, tooLarge: true, binary: false, size, lineCount: 0, content: '', truncatedLines: false })
+            if (size > cfg.peekMaxBytes) return writeJson(res, { ok: true, tooLarge: true, binary: false, size, lineCount: 0, content: '', truncatedLines: false })
             const text = (await readFile(path)).toString('utf-8')
             const binary = text.includes('\u0000')
             const lines = text.split('\n')
-            const head = lines.slice(0, PEEK_MAX_LINES).join('\n')
+            const head = lines.slice(0, cfg.peekMaxLines).join('\n')
             return writeJson(res, {
               ok: true, tooLarge: false, binary, size,
-              content: head, truncatedLines: lines.length > PEEK_MAX_LINES, lineCount: lines.length,
+              content: head, truncatedLines: lines.length > cfg.peekMaxLines, lineCount: lines.length,
             })
           } catch (err) {
             return writeJson(res, { ok: false, error: err instanceof Error ? err.message : String(err) })
