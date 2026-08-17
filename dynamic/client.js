@@ -403,9 +403,6 @@ return {
 
     // ---- 图标系统 ----
     const FOLDER_D = 'M1.5 2.5A1.5 1.5 0 0 1 3 1h3.2l1.6 2H13a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 13 13H3a1.5 1.5 0 0 1-1.5-1.5v-9z'
-    // 文件树图标:顶部文件夹 + 向下的树状分支线(16x16)
-    const FOLDER_TREE_D = 'M2.5 3.6A1.6 1.6 0 0 1 4.1 2h1.9l1 1.5h5.4A1.6 1.6 0 0 1 14 5.1v3.3H2.5z'
-    const TREE_LINE_D = 'M4.5 8.4v5.4M4.5 9.8h3.2M6.2 9.8v1.6M4.5 11.8h5M7.4 11.8v1.6'
     const DOC_BODY = 'M4.3 1.7h5.3l2.7 2.7v8.9a1 1 0 0 1-1 1H4.3a1 1 0 0 1-1-1V2.7a1 1 0 0 1 1-1z'
     const DOC_FOLD = 'M9.6 1.7L12.3 4.4H9.6z'
     const GLYPHS = {
@@ -476,12 +473,7 @@ return {
         'aria-label': tr('drawer.open'),
       },
         el('svg', { viewBox: '0 0 16 16', width: 16, height: 16, 'aria-hidden': true },
-          el('path', { d: FOLDER_TREE_D, fill: 'currentColor' }),
-          el('path', {
-            d: TREE_LINE_D,
-            fill: 'none', stroke: 'currentColor', strokeWidth: 1.3,
-            strokeLinecap: 'round', strokeLinejoin: 'round',
-          })))
+          el('path', { d: FOLDER_D, fill: 'currentColor' })))
     }
 
     // ---- 输入桥组件:仅捕获最新的 draft 与 setDraft ----
