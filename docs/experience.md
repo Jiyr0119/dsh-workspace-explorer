@@ -1,7 +1,7 @@
 # DSH 插件开发经验与 awesome-dsh-plugin 提交流程 / Dev Experience & awesome Submission
 
-> 本文档沉淀本仓库开发过程中验证过的经验,供后续迭代、新插件开发、再次提交 awesome 时直接复用。
-> This doc captures validated experience for future iterations, new DSH plugins, and re-submitting to awesome-dsh-plugin.
+> 本文档沉淀本仓库开发过程中验证过的经验(截至 v0.4.0),供后续迭代、新插件开发、提交 awesome 时直接复用。
+> This doc captures validated experience up to v0.4.0 for future iterations, new DSH plugins, and awesome-dsh-plugin submission.
 
 ---
 
@@ -74,7 +74,7 @@ window.__ModuleLoader__.load({ id: '@jiyr0119/dsh-workspace-explorer', factory: 
 ```json
 {
   "id": "dsh-workspace-explorer",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "main": "./lib/index.js",
   "client": { "main": "./lib/client.js" }
 }
@@ -97,9 +97,10 @@ window.__ModuleLoader__.load({ id: '@jiyr0119/dsh-workspace-explorer', factory: 
 
 ## 三、发布前必做验证(缺一不可)/ Mandatory pre-publish checks
 
-> 0.3.0 / 0.3.1 两次真实安装后崩/坏的教训:
-> ① `cordis.patch.yml` 作用域包名未加引号 → `dsh web` 启动崩溃;
-> ② `webServer.register` 传入**数组** → 路由全部静默失效(浏览器报 `Unexpected end of JSON input`)。
+> 真实安装踩过的坑(0.3.0–0.4.0 三轮):
+> ① `cordis.patch.yml` 作用域包名未加引号 → `dsh web` 启动崩溃(`bad indentation of a mapping entry`;`@` 不能作 YAML 裸标量起始);
+> ② `webServer.register` 传入**数组** → 路由全部静默失效(数组被塞进前缀表 key=undefined,`/dsh-we/api/*` 全未注册,浏览器 `fetch().json()` 报 `Unexpected end of JSON input`);
+> ③ 侧边栏旧入口按钮残留:新版本改用会话头部图标后,旧 `sidebar.footer.action` 按钮仍显示——用**空占位注册**(注册一个空组件)顶掉旧按钮,保证唯一入口。
 > **register 一次只能注册一个路由,必须逐个调用,不能传数组。**
 
 ```bash
@@ -116,10 +117,17 @@ rm -rf "$HOME/.dsh/profiles/preflight"
 
 # 4) 真实挂载确认(浏览器):装进真实 web profile 并重启 dsh web
 #    dsh plugin --profile web add -w @jiyr0119/dsh-workspace-explorer@latest
-#    重启后侧边栏底部出现 📁 文件按钮,面板可展开目录 / 拖拽插入 / 设置生效
+#    重启后会话头部出现 📁 文件按钮,面板可展开目录 / 拖拽插入 / 设置生效
 ```
 
 注意:现代 pnpm(9/10)在 workspace root 直接 `add` 会报 `ERR_PNPM_ADDING_TO_ROOT`,命令必须带 `-w`。
+
+### UI 定位经验(v0.4.0 弹窗化)
+
+- 面板不占用壳的 details 列:不要调 `layout.openDetails/closeDetails` 抢占壳的「工具调用详情」;自己用 `shell.overlay` + 绝对定位浮层。
+- 弹窗位置**实时测量**:锚在会话头部底部与 composer 顶部之间,窗口缩放/布局变化时跟随,绝不遮挡输入框。
+- 动画尊重 `prefers-reduced-motion`(用户关动画时不要强制播放)。
+- `DockBridge` 等输入桥要对 `useInput` 等外部 prop 做空值守卫,避免壳未注入时崩溃。
 
 ## 四、npm 发布 / npm publish
 
@@ -140,13 +148,14 @@ npm publish            # 账号开 2FA 时,需输入一次性验证码(OTP)
 
 ## 六、awesome-dsh-plugin 提交流程 / Submission workflow
 
-> 本项目 PR #1158 已合并(2026-08-16),插件已收录。再次提交或新插件可复用以下流程。
+> ⚠️ 记录更正(2026-08-17):早前笔记写「PR #1158 已合并」**是错的**——实际上游 `omdsh-dev/awesome-dsh-plugin` 与本地 fork 上均无任何 PR,条目从未被收录。v0.4.0 起按本流程**首次真正提交**。避免凭记忆写「已合并」,提交后务必用 `gh pr view <num> --repo omdsh-dev/awesome-dsh-plugin` 核实状态。
 
 ### 1. 达标门槛(CI 会查,不满足直接红)
 
 - 仓库存在 **`dsh.bundle`**(package.json 里 `dsh.bundle.patch` 字段)
 - 仓库年龄 ≥ 1 天
 - commits ≥ 10
+- 仓库有 `dsh-plugin` topic(已加)
 
 ### 2. 提交内容
 
@@ -163,16 +172,26 @@ description:
 
 - 截图条目合并进 awesome 仓库的 `data/screenshots.json`(以仓库 URL 为 key,1–8 张,URL 用 `raw.githubusercontent.com/.../main/assets/screenshots/*.png`)。
 
-### 3. README 生成
+### 3. 差异化定位(单插件 vs 全家桶)/ Product positioning
+
+awesome 里大量 UI 插件是**一整套工作台**(如 `omdsh-dev/DSH-better-sidebar`:文件编辑 + 终端 + Git + 子代理全家桶)。本插件定位要突出**单插件、即插即用**:
+
+- **独立单插件**:只做「工作区文件树 + 引用插入」一件事,不捆绑终端/Git/子代理等,不抢占壳的 details 列与工具详情。
+- **即插即用**:`dsh plugin add` 一条命令装完即用,零配置、无构建、不依赖其他插件;原生包自带 host 路由 + 浏览器 bundle,无需手动粘贴。
+- 描述避免营销词(awesome 要求「只说功能,不带超级形容词」),用「single-purpose / zero-config / standalone」这类事实词。
+
+### 4. README 生成
 
 - awesome 仓库的 README 由 `node scripts/generate-readme.mjs` 从 YAML 生成(需先 `npm ci` 装 js-yaml/marked),**不要手改 README**。
+- 流程:clone 自己的 fork → 建分支 → 加 YAML + 改 screenshots.json → `npm ci && node scripts/generate-readme.mjs` → 提交(README.md + README.zh.md 一起)→ push → `gh pr create --repo omdsh-dev/awesome-dsh-plugin`。
 - 合并冲突时:screenshots.json 冲突取 theirs(其他条目优先),再把自己的条目补回去,重新生成 README 提交。
 
-### 4. awesome-lint 注意
+### 5. awesome-lint 注意
 
 - 描述里出现 `[file: path]` 等会被当成引用检查(no-undefined-references),必须转义为 `\[file: path\]`。
+- 描述含 `: `(英文冒号+空格)必须加引号,否则 YAML 解析成嵌套键。
 
-### 5. 收录 ≠ 浏览器自动生效
+### 6. 收录 ≠ 浏览器自动生效
 
 - dsh-market(DSH 内商店)自动同步 awesome 列表;但**商店收录不代表插件装完就有 UI** —— 0.2.0 原生化之前,商店安装只有 host 端、没有浏览器面板。README 要诚实写明当前安装方式的效果。
 
@@ -194,3 +213,12 @@ const { t } = useLocale('dsh-workspace-explorer')   // 命名空间唯一,避免
 - 预览图标 click 与拖拽冲突(行可拖拽会吞 click):改用 `onMouseDown` + `preventDefault` + `stopPropagation` 打开预览,键盘 `P` 也能开。
 - 面板过高挡住输入框:`height: min(640px, calc(100dvh - 110px))`,并设最小高度。
 - `slots.inject` 类型:组件类型收不严时,把 inject 函数签名放宽为返回 `unknown`。
+
+## 九、版本演进时间线(v0.2.0 → v0.4.0)/ Release timeline
+
+- **v0.2.0** — 原生单包重构:Host `src/index.ts`(webServer `/dsh-we/api/list` + `/peek`)+ 浏览器 `src/client/index.tsx`(dsh.plugin.json client.main + `__ModuleLoader__`);动态版保留 `dynamic/`。
+- **v0.3.0** — 顶部 Tab(文件/设置)+ 设置页(隐藏噪声目录/显示大小/引用格式/预览行数/面板宽度),设置镜像进 DSH 设置壳;Host 加 `/dsh-we/api/config`。
+- **v0.3.1** — 修复 `cordis.patch.yml` 作用域包名未加引号导致的 `dsh web` 启动崩溃。
+- **v0.3.2** — 修复 `webServer.register` 传数组导致路由静默失效;面板改为右上角 dock 式(可拖宽 280–640px)。
+- **v0.4.0** — 面板从 details 列抽屉改为**浮动弹窗**,入口移到会话头部文件树图标;位置实时测量在 header 与 composer 之间;空占位顶掉旧侧边栏按钮;不占用壳的 details 列。
+- **npm 版本同步**:每版同步更新 `package.json` / `dsh.plugin.json` / `manifest.json` / `CHANGELOG.md` 四处。
