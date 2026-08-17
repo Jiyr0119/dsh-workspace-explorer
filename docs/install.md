@@ -4,7 +4,7 @@
 
 | 方式 | 操作 | 浏览器面板 |
 |---|---|---|
-| **一、动态粘贴(推荐)** | `cordis_define` 粘贴 `src/host.js` + `src/client.js` | ✅ 完整 UI |
+| **一、动态粘贴(推荐)** | `cordis_define` 粘贴 `dynamic/host.js` + `dynamic/client.js` | ✅ 完整 UI |
 | **二、npm 源码包** | `npm i @jiyr0119/dsh-workspace-explorer`,再按方式一粘贴 | ✅ 完整 UI |
 | **三、商店一键安装** | 列表/market 收录后 `dsh plugin add` 或市场按钮 | ⚠️ Host 挂载成功,**UI 待原生改造**(见 `native-package.md`) |
 
@@ -17,8 +17,8 @@
 ### 手动粘贴
 
 1. 在 DSH Web UI 中,让 Agent 执行 `cordis_define`(或使用动态插件面板的「新建插件」入口),`idPrefix` 建议填 `wsex`。
-2. 将 [`../src/host.js`](../src/host.js) 全文粘贴到 **Host 代码**。
-3. 将 [`../src/client.js`](../src/client.js) 全文粘贴到 **Client 代码**。
+2. 将 [`../dynamic/host.js`](../dynamic/host.js) 全文粘贴到 **Host 代码**。
+3. 将 [`../dynamic/client.js`](../dynamic/client.js) 全文粘贴到 **Client 代码**。
 4. `cordis_run` 激活;首次出现 Run 卡时点「允许」(单勾仅本次,双勾授权后续版本)。
 
 ### 注意事项

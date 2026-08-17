@@ -1,6 +1,6 @@
 # 原生 DSH 包方案 / Native DSH Package Roadmap
 
-> 当前插件是**动态 Cordis 插件**(粘贴 `src/host.js` + `src/client.js` 安装,依赖动态运行器的 `harness.handle` / `host.call`)。要让 `dsh plugin add` / dsh-market 一键安装后**浏览器面板真正出现**,正解是把插件转成**原生双包**:Host Remote 服务 + Client 浏览器包。**好消息:这条路径不依赖上游核心改造**(见下)。
+> 当前插件是**动态 Cordis 插件**(粘贴 `dynamic/host.js` + `dynamic/client.js` 安装,依赖动态运行器的 `harness.handle` / `host.call`)。要让 `dsh plugin add` / dsh-market 一键安装后**浏览器面板真正出现**,正解是把插件转成**原生双包**:Host Remote 服务 + Client 浏览器包。**好消息:这条路径不依赖上游核心改造**(见下)。
 
 ## 关键发现(2026-08):第三方包可以自建 Remote
 
@@ -27,7 +27,7 @@ export class WorkspaceExplorerGateway extends TypertRemoteService {
 
   @Remote('listTree')
   listTree(request: { path: string; rel: string }): Promise<{ entries: WsEntry[]; truncated: boolean }> {
-    // 移植 src/host.js 的列目录逻辑(ctx.fs.resolve/listDir/processPath)
+    // 移植 dynamic/host.js 的列目录逻辑(ctx.fs.resolve/listDir/processPath)
   }
 
   @Remote('peek')
@@ -43,7 +43,7 @@ export default WorkspaceExplorerGateway
 
 ### Phase 2 — Client 包 `@jiyr0119/dsh-client-ui-workspace-explorer`
 
-- 把 `src/client.js` 的组件移植为 **TSX**(`ExplorerPanel.tsx` + `ExplorerPanel.module.css` + `icons.tsx`),参考 `ui-directory-picker-browse` 的包结构(package.json 带 `dsh.client.platform: web`、tsdown 构建出 `lib/`)
+- 把 `dynamic/client.js` 的组件移植为 **TSX**(`ExplorerPanel.tsx` + `ExplorerPanel.module.css` + `icons.tsx`),参考 `ui-directory-picker-browse` 的包结构(package.json 带 `dsh.client.platform: web`、tsdown 构建出 `lib/`)
 - 用生成绑定调用 Host(替换 `host.call`):`import { workspaceExplorerRemote } from '@jiyr0119/dsh-host-workspace-explorer/remote'` → `ctx.remote.workspaceExplorer.listTree({path, rel})`
 - 槽位注册不变(`shell.overlay` / `sidebar.footer.action` / `conversation.input.dock`),i18n 用 `ctx.locale`(已实现,直接移植)
 

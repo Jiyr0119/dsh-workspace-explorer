@@ -51,18 +51,18 @@
 *动态 Cordis 插件*:无需构建、无需改任何配置。
 
 1. 在 DSH Web UI 中让 Agent 执行 `cordis_define`(或使用动态插件面板),`idPrefix` 填 `wsex`
-2. 将 [`src/host.js`](./src/host.js) 全文粘贴到 **Host 代码**
-3. 将 [`src/client.js`](./src/client.js) 全文粘贴到 **Client 代码**
+2. 将 [`dynamic/host.js`](./dynamic/host.js) 全文粘贴到 **Host 代码**
+3. 将 [`dynamic/client.js`](./dynamic/client.js) 全文粘贴到 **Client 代码**
 4. `cordis_run` 激活,首次出现 Run 卡时点击授权
 5. 点击侧边栏底部 📁「文件」按钮 → 展开目录 → 点击文件,或拖进输入框,然后发送
 
 **方式二 · npm 源码包**
-`npm install @jiyr0119/dsh-workspace-explorer` — 内含 `src/host.js` / `src/client.js`,按方式一粘贴即可,版本随 semver 发布。
+`npm install @jiyr0119/dsh-workspace-explorer` — 内含 `dynamic/host.js` / `dynamic/client.js`,按方式一粘贴即可,版本随 semver 发布。
 
-**方式三 · 商店(`dsh plugin add` / dsh-market)— 已收录,但 UI 暂未生效**
-仓库声明了 `dsh.bundle`,awesome 列表与 dsh-market 会收录并提供一键安装。**此类安装会让 Host 入口干净挂载,但浏览器面板还不会出现** —— 浏览器半区需要原生 `@Remote` 桥(改造进行中,见 [`docs/native-package.md`](./docs/native-package.md))。
+**方式三 · 商店(`dsh plugin add` / dsh-market)— 原生安装(v0.2.0)**
+`dsh plugin --profile web add @jiyr0119/dsh-workspace-explorer@latest`(或市场一键按钮)。包现在同时提供原生 Host 半区(`lib/index.js`,webServer JSON 路由)和浏览器 bundle(`lib/client.js` 经 `dsh.plugin.json`),安装后**浏览器面板即可挂载**。0.2.0 构建已通过;真实 DSH 挂载的最后一公里验证待完成(见 [`docs/native-package.md`](./docs/native-package.md))。动态粘贴(方式一)仍是零构建选项。
 
-> ⚠️ **常见误解**:被插件市场收录 ≠ 插件会自动出现在每个用户的浏览器里。收录只表示用户能浏览并执行安装命令;在原生改造完成前,**只有方式一提供完整可交互面板**。
+> ⚠️ **常见误解**:收录本身不会自动安装任何东西 —— 用户仍需点安装。有了方式三,安装后面板就会出现(原生 bundle);0.2.0 之前商店安装只会挂载 Host 入口、无 UI。
 
 详细步骤见 [`docs/install.md`](./docs/install.md)。
 

@@ -51,18 +51,18 @@ Inspired by the VS Code / Cursor project tree, filling the gap of a missing dire
 A *dynamic Cordis plugin*: no build step, no config changes.
 
 1. In the DSH web UI, have an agent run `cordis_define` (or use the dynamic plugin panel) with `idPrefix` `wsex`.
-2. Paste the whole [`src/host.js`](./src/host.js) into **Host code**.
-3. Paste the whole [`src/client.js`](./src/client.js) into **Client code**.
+2. Paste the whole [`dynamic/host.js`](./dynamic/host.js) into **Host code**.
+3. Paste the whole [`dynamic/client.js`](./dynamic/client.js) into **Client code**.
 4. `cordis_run` to activate; authorize on the Run card when it first appears.
 5. Click the 📁 **Files** button at the bottom of the sidebar → expand directories → click a file, or drag it into the composer, then send.
 
 **Way 2 · npm source package**
-`npm install @jiyr0119/dsh-workspace-explorer` — the package ships `src/host.js` / `src/client.js` for the Way-1 paste flow, with semver releases.
+`npm install @jiyr0119/dsh-workspace-explorer` — the package ships `dynamic/host.js` / `dynamic/client.js` for the Way-1 paste flow, with semver releases.
 
-**Way 3 · Storefront (`dsh plugin add` / dsh-market) — listed, but no UI yet**
-The repo declares a `dsh.bundle` manifest so the awesome-dsh-plugin list and dsh-market can list it and offer a one-click install. **Such an install mounts the host entry cleanly, but the browser panel does NOT appear yet** — the browser half needs the native `@Remote` bridge (conversion in progress; see [`docs/native-package.md`](./docs/native-package.md)).
+**Way 3 · Storefront (`dsh plugin add` / dsh-market) — native install (v0.2.0)**
+`dsh plugin --profile web add @jiyr0119/dsh-workspace-explorer@latest` (or the market one-click button). The package now ships a native host half (`lib/index.js`, webServer JSON routes) **and** a browser bundle (`lib/client.js` via `dsh.plugin.json`), so the browser panel mounts after install. The 0.2.0 build passes; last-mile verification against a real DSH mount is pending (see [`docs/native-package.md`](./docs/native-package.md)). The dynamic paste flow (Way 1) remains the zero-build option.
 
-> ⚠️ **Common misconception**: a plugin-market listing does **not** mean the plugin automatically shows up in every user's browser. A listing only lets users browse it and run the install command. Until the native conversion lands, **only Way 1 provides the full interactive panel**.
+> ⚠️ **Common misconception**: a listing alone never auto-installs anything — users still click install. With Way 3 the panel now appears after install (native bundle); before 0.2.0, storefront installs only mounted the host entry with no UI.
 
 See [`docs/install.md`](./docs/install.md) for details.
 

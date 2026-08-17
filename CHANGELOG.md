@@ -1,5 +1,14 @@
 # Changelog
 
+## [v0.2.0] - 2026-08-17
+
+### 原生化 Native package
+
+- 重构为**原生单包**(仿 dsh-better-sidebar 模板):Host `src/index.ts`(webServer JSON 路由 `/dsh-we/api/list` + `/peek`)+ 浏览器 bundle `src/client/index.tsx`(`dsh.plugin.json` client.main,`__ModuleLoader__` 格式)
+- 构建产物:`lib/index.js`(ESM host)+ `lib/client.js`(CJS browser,42KB)+ `lib/types`
+- 动态版保留至 `dynamic/host.js` + `dynamic/client.js`(零构建粘贴路径)
+- `dsh plugin --profile web add @jiyr0119/dsh-workspace-explorer@latest` 后浏览器面板可挂载(真实 DSH 挂载验证待完成)
+
 ## [v0.1.1] - 2026-08-17
 
 ### 新增 Added
