@@ -148,8 +148,9 @@ npm publish            # 账号开 2FA 时,需输入一次性验证码(OTP)
 
 ## 六、awesome-dsh-plugin 提交流程 / Submission workflow
 
-> ⚠️ 流程更新(2026-08-17):上游已**重构**——不再用 `data/plugins/*.yml` + `generate-readme.mjs` 生成,改为**直接编辑 `README.md`(英文)与 `README.zh.md`(中文),在对应分类下各加一行**;CI(build-site.yml)合并后自动重建 site。旧 YAML 流程已废弃。
-> ⚠️ 记录更正:早前笔记写「PR #1158 已合并」是**错的**——实际上游从未收录过本插件。v0.4.0 起首次真实提交:**PR #6**(2026-08-17,状态 OPEN)。提交后务必用 `gh pr view <num> --repo omdsh-dev/awesome-dsh-plugin` 核实状态,别凭记忆。
+> ⚠️ **仓库关系(重要,别再搞错)**:真正的上游是 **`awesome-dsh-plugin/awesome-dsh-plugin`**(官方组织,源仓库)。`omdsh-dev/awesome-dsh-plugin` **本身也是一个 fork**(parent 指向官方仓库),不是上游!提交 PR 一律走官方仓库。fork 只认 `Jiyr0119/awesome-dsh-plugin`。
+> ⚠️ **流程更新(2026-08-17)**:上游已**重构**——不再用 `data/plugins/*.yml` + `generate-readme.mjs` 生成,改为**直接编辑 `README.md`(英文)与 `README.zh.md`(中文),在对应分类下各加一行**;CI(build-site.yml)合并后自动重建 site。旧 YAML 流程已废弃。
+> ✅ **已收录**:PR **#1158**(2026-08-16)已合并,条目在官方 README(UI Enhancements)。v0.4.0 描述更新走 **PR #1359**(2026-08-17,OPEN)。
 
 ### 1. 门槛要求(贡献指南)
 
@@ -178,9 +179,10 @@ awesome 里大量 UI 插件是**一整套工作台**(如 `omdsh-dev/DSH-better-s
 
 ### 4. 提交流程
 
-- 更新自己的 fork:`git fetch upstream && git checkout -b feat/xxx upstream/main`(fork 的 main 可能因 shallow clone 与上游历史不相关,直接基于 `upstream/main` 建分支最干净)。
-- 提交 → push 到 fork 分支 → `gh pr create --repo omdsh-dev/awesome-dsh-plugin --base main --head <owner>:<branch>`。
+- 更新自己的 fork:`git fetch upstream && git checkout -b feat/xxx upstream/main`(**upstream 必须是官方 `awesome-dsh-plugin/awesome-dsh-plugin`,别用 omdsh-dev**);fork 的 main 可能因 shallow clone 与上游历史不相关,直接基于 `upstream/main` 建分支最干净。
+- 提交 → push 到 fork 分支 → `gh pr create --repo awesome-dsh-plugin/awesome-dsh-plugin --base main --head <owner>:<branch>`。
 - 合并冲突时:README 冲突取 theirs(其他条目优先),把自己的行补回去。
+- 提交前用 `gh search prs --repo awesome-dsh-plugin/awesome-dsh-plugin "owner名"` 查是否已有条目/PR,别重复新增(已有条目应走**更新描述**而非新增一行)。
 
 ### 5. 收录 ≠ 浏览器自动生效
 
