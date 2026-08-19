@@ -1,5 +1,23 @@
 # Changelog
 
+## [v0.5.2] - 2026-08-19
+
+### 单元测试接入 Unit tests
+
+- 引入 **vitest**:新增 `test/format.test.ts`(12 例)与 `test/host.test.ts`(29 例)共 41 例,覆盖路径安全校验、目录列表、分页读取、二进制嗅探、目录树生成与格式化工具;host 内部函数(`resolveRel`/`listDir`/`readLinesPage`/`pageScanLarge`/`sniffBinary`/`buildTreeNodes`/`cfg`)标注 `@internal` 导出供测试断言,不构成公开 API / **vitest** is now wired in: 41 tests across `test/format.test.ts` (12) and `test/host.test.ts` (29) covering path-safety checks, listing, paging, binary sniffing, tree building and formatting; host internals are exported as `@internal` (not public API) for test assertions.
+- `npm test` / `npm run test:watch` 脚本与 `vitest.config.ts` 就位 / `test` and `test:watch` scripts plus `vitest.config.ts` in place.
+
+### Host 安全与性能 Security & performance
+
+- **路径安全校验统一化**:新增 `resolveRel(root, rel)` 作为「工作区根目录 + 相对路径」唯一寻址入口,拒绝空根与含 `''/./..` 危险段的 rel,`/dsh-we/api/list|peek|tree` 全部走该校验,杜绝任意路径读取 / **Unified path safety**: new `resolveRel(root, rel)` is the single root+rel resolver rejecting empty roots and dangerous `''/./..` segments; all three `/dsh-we/api/list|peek|tree` routes route through it, closing arbitrary path reads.
+- **大文件翻页提速**:新增行起始字节缓存(`lineIndexCache`,最多保留 64 个文件、缓存上限 200 万行),翻页复用已扫描结果而非每页从头重扫 O(n);文件完全扫描后可返回精确行数 / **Faster large-file paging**: a line-start byte-offset cache (`lineIndexCache`, ≤64 files, ≤2M lines) reuses prior scans instead of re-scanning O(n) per page; exact line counts once a file is fully scanned.
+- peek 请求体从 `path` 改为 `root` + `rel`(兼容旧 `path` 字段)/ peek now takes `root` + `rel` (legacy `path` still accepted).
+
+### Client
+
+- 格式化工具抽为纯函数模块 `src/client/format.ts`(`fmtSize`/`basename`/`extOf`/`formatTreeBlock`),面板复用并在浏览器端单测 / formatting helpers extracted to pure `src/client/format.ts`, reused by the panel and unit-tested in Node.
+- 原生包与动态粘贴版同步重建(`lib/client.js` 等)/ native bundle and paste-in client rebuilt in sync.
+
 ## [v0.5.1] - 2026-08-17
 
 ### 入口升级 Entry pill

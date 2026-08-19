@@ -6,6 +6,9 @@
  * - peek : 按行分页读取文本文件(offset/limit),支持「插入完整内容」(whole,≤32KB)
  * - tree : 递归生成目录树节点(限深/限条目),供目录拖拽与多选批量插入
  * - config: 运行期配置(噪声目录 / 最大条目 / 预览行数)
+ *
+ * 安全边界:list/peek/tree 全部以「工作区根目录 + 相对路径」寻址,服务端校验 rel
+ * 不含 ''/./.. 段,任何文件读写都被约束在工作区根目录内,杜绝任意路径读取。
  */
 import { open, readdir, readFile, stat } from 'node:fs/promises'
 import { basename, join } from 'node:path'
@@ -46,7 +49,8 @@ declare module 'cordis' {
 
 const DEFAULT_IGNORED = ['.git', 'node_modules', '__pycache__', '.venv', 'venv', '.pytest_cache', '.ruff_cache', '.mypy_cache', 'dist', 'build', '.next', '.nuxt', 'coverage', '.idea', 'target']
 // 运行期配置:客户端 POST /dsh-we/api/config 可实时调整(噪声目录 / 最大条目 / 预览行数)
-const cfg = {
+/** @internal 运行期配置(供单元测试调整),不构成公开 API。 */
+export const cfg = {
   ignore: [...DEFAULT_IGNORED],
   max: 400,
   peekMaxLines: 60,
@@ -57,6 +61,11 @@ const SMALL_FILE_MAX = 4 * 1024 * 1024     // 整读阈值:小于它直接 split
 const PAGE_SCAN_CHUNK = 256 * 1024         // 大文件分页扫描的块大小
 const TREE_MAX_DEPTH = 6                   // 目录树最大递归深度
 const TREE_MAX_ENTRIES = 200               // 目录树默认条目预算
+const MAX_CACHED_LINES = 2_000_000         // 行偏移缓存上限(超过则退化为无缓存扫描)
+const LINE_CACHE_MAX_FILES = 64            // 行偏移缓存最多保留的文件数
+
+/** @internal 大文件行起始字节缓存(key=绝对路径),供单元测试断言,不构成公开 API。 */
+export const lineIndexCache = new Map<string, { offsets: number[]; scannedBytes: number; size: number }>()
 
 async function readJsonBody(req: WsHttpRequest): Promise<Record<string, unknown>> {
   let raw = ''
@@ -74,8 +83,18 @@ function writeJson(res: WsHttpResponse, value: unknown, status = 200): void {
   res.end(JSON.stringify(value))
 }
 
-/** 列一个目录层级(目录优先、按名排序、噪声目录过滤、400 上限)。 */
-async function listDir(abs: string, baseRel: string): Promise<{ entries: WsEntry[]; truncated: boolean }> {
+/** @internal 把「工作区根目录 + 相对路径」解析为绝对路径,并校验 rel 不含危险段。 */
+export function resolveRel(root: string, rel: string): { abs: string } | { error: string } {
+  if (root === '') return { error: 'missing-root' }
+  if (rel !== '') {
+    const segs = rel.split('/')
+    if (segs.some((s) => s === '' || s === '.' || s === '..')) return { error: 'bad-rel' }
+  }
+  return { abs: rel === '' ? root : root.replace(/\/+$/, '') + '/' + rel }
+}
+
+/** @internal 列一个目录层级(目录优先、按名排序、噪声目录过滤、400 上限)。 */
+export async function listDir(abs: string, baseRel: string): Promise<{ entries: WsEntry[]; truncated: boolean }> {
   const dirents = await readdir(abs, { withFileTypes: true })
   const out: WsEntry[] = []
   for (const d of dirents) {
@@ -97,7 +116,8 @@ async function listDir(abs: string, baseRel: string): Promise<{ entries: WsEntry
  * 按行读取 [offset, offset+limit) 一页内容。
  * 小文件(≤4MB)整读、行数精确;大文件块扫描定位行区间,行数未知(null)。
  */
-async function readLinesPage(abs: string, offset: number, limit: number): Promise<{ content: string; startLine: number; lineCount: number | null; hasMore: boolean }> {
+/** @internal 按行读取一页内容。 */
+export async function readLinesPage(abs: string, offset: number, limit: number): Promise<{ content: string; startLine: number; lineCount: number | null; hasMore: boolean }> {
   const info = await stat(abs)
   const size = info.size
   if (size <= SMALL_FILE_MAX) {
@@ -107,38 +127,74 @@ async function readLinesPage(abs: string, offset: number, limit: number): Promis
     const page = lines.slice(offset, offset + limit)
     return { content: page.join('\n'), startLine: offset, lineCount: lines.length, hasMore: offset + page.length < lines.length }
   }
+  return pageScanLarge(abs, size, offset, limit)
+}
+
+/** @internal 大文件分页:增量缓存每行起始字节,翻页复用已扫描结果,避免每页从头重扫 O(n)。 */
+export async function pageScanLarge(abs: string, size: number, offset: number, limit: number): Promise<{ content: string; startLine: number; lineCount: number | null; hasMore: boolean }> {
+  const target = offset + limit
   const fh = await open(abs, 'r')
   try {
-    let pos = 0
-    let newlines = 0
-    let startByte = offset === 0 ? 0 : -1
-    let endByte = -1
-    while (pos < size && endByte === -1) {
+    // 目标行号超过缓存上限:退化为无缓存完整扫描(仍正确,但每页 O(n))
+    if (target > MAX_CACHED_LINES) {
+      let pos = 0
+      let newlines = 0
+      let startByte = offset === 0 ? 0 : -1
+      let endByte = -1
+      while (pos < size && endByte === -1) {
+        const want = Math.min(PAGE_SCAN_CHUNK, size - pos)
+        const chunk = Buffer.allocUnsafe(want)
+        await fh.read(chunk, 0, want, pos)
+        let idx = chunk.indexOf(0x0a)
+        while (idx !== -1) {
+          newlines++
+          if (newlines === offset) startByte = pos + idx + 1
+          if (newlines === target) { endByte = pos + idx + 1; break }
+          idx = chunk.indexOf(0x0a, idx + 1)
+        }
+        pos += want
+      }
+      if (startByte === -1) startByte = size
+      if (endByte === -1) endByte = size
+      const len = endByte - startByte
+      const buf = len > 0 ? Buffer.allocUnsafe(len) : Buffer.alloc(0)
+      if (len > 0) await fh.read(buf, 0, len, startByte)
+      return { content: buf.toString('utf-8').replace(/\n$/, ''), startLine: offset, lineCount: null, hasMore: endByte < size }
+    }
+    let cached = lineIndexCache.get(abs)
+    if (!cached || cached.size !== size) {
+      if (lineIndexCache.size >= LINE_CACHE_MAX_FILES) lineIndexCache.clear()
+      cached = { offsets: [0], scannedBytes: 0, size }
+      lineIndexCache.set(abs, cached)
+    }
+    while (cached.offsets.length <= target && cached.scannedBytes < size) {
+      const pos = cached.scannedBytes
       const want = Math.min(PAGE_SCAN_CHUNK, size - pos)
       const chunk = Buffer.allocUnsafe(want)
       await fh.read(chunk, 0, want, pos)
       let idx = chunk.indexOf(0x0a)
       while (idx !== -1) {
-        newlines++
-        if (newlines === offset) startByte = pos + idx + 1
-        if (newlines === offset + limit) { endByte = pos + idx + 1; break }
+        cached.offsets.push(pos + idx + 1)
         idx = chunk.indexOf(0x0a, idx + 1)
       }
-      pos += want
+      cached.scannedBytes = pos + want
     }
-    if (startByte === -1) startByte = size
-    if (endByte === -1) endByte = size
+    const startByte = offset < cached.offsets.length ? cached.offsets[offset] : size
+    const endByte = target < cached.offsets.length ? cached.offsets[target] : size
     const len = endByte - startByte
     const buf = len > 0 ? Buffer.allocUnsafe(len) : Buffer.alloc(0)
     if (len > 0) await fh.read(buf, 0, len, startByte)
-    return { content: buf.toString('utf-8').replace(/\n$/, ''), startLine: offset, lineCount: null, hasMore: endByte < size }
+    const fullyScanned = cached.scannedBytes >= size
+    const lastOffset = cached.offsets[cached.offsets.length - 1]
+    const lineCount = fullyScanned ? cached.offsets.length - (lastOffset === size ? 1 : 0) : null
+    return { content: buf.toString('utf-8').replace(/\n$/, ''), startLine: offset, lineCount, hasMore: endByte < size }
   } finally {
     await fh.close()
   }
 }
 
-/** 嗅探是否二进制(NUL 字节),只读前 8KB。 */
-async function sniffBinary(abs: string, size: number): Promise<boolean> {
+/** @internal 嗅探是否二进制(NUL 字节),只读前 8KB。 */
+export async function sniffBinary(abs: string, size: number): Promise<boolean> {
   const probe = Buffer.alloc(Math.min(8192, size))
   if (probe.length === 0) return false
   const fh = await open(abs, 'r')
@@ -146,8 +202,8 @@ async function sniffBinary(abs: string, size: number): Promise<boolean> {
   return probe.includes(0)
 }
 
-/** 递归收集目录树节点(树根相对 rel 从 '' 开始;受深度/条目预算限制)。 */
-async function buildTreeNodes(
+/** @internal 递归收集目录树节点(树根相对 rel 从 '' 开始;受深度/条目预算限制)。 */
+export async function buildTreeNodes(
   abs: string, rel: string, depth: number, budget: { remaining: number },
   out: Array<{ name: string; type: 'directory' | 'file'; rel: string }>,
 ): Promise<void> {
@@ -181,14 +237,10 @@ export default {
         path: '/dsh-we/api/list',
         handler: async (req, res) => {
           const body = await readJsonBody(req)
-          const root = String(body.path ?? '')
           const rel = String(body.rel ?? '')
-          if (root === '') return writeJson(res, { ok: false, error: 'missing-path' })
-          if (rel !== '') {
-            const segs = rel.split('/')
-            if (segs.some((s) => s === '' || s === '.' || s === '..')) return writeJson(res, { ok: false, error: 'bad-rel' })
-          }
-          const abs = rel === '' ? root : root.replace(/\/+$/, '') + '/' + rel
+          const resolved = resolveRel(String(body.root ?? body.path ?? ''), rel)
+          if ('error' in resolved) return writeJson(res, { ok: false, error: resolved.error })
+          const abs = resolved.abs
           try {
             const { entries, truncated } = await listDir(abs, rel)
             return writeJson(res, { ok: true, path: abs, rel, entries, truncated })
@@ -202,8 +254,9 @@ export default {
         path: '/dsh-we/api/peek',
         handler: async (req, res) => {
           const body = await readJsonBody(req)
-          const path = String(body.path ?? '')
-          if (path === '') return writeJson(res, { ok: false, error: 'missing-path' })
+          const resolved = resolveRel(String(body.root ?? ''), String(body.rel ?? ''))
+          if ('error' in resolved) return writeJson(res, { ok: false, error: resolved.error })
+          const path = resolved.abs
           try {
             const info = await stat(path)
             const size = info.size
@@ -229,8 +282,9 @@ export default {
         path: '/dsh-we/api/tree',
         handler: async (req, res) => {
           const body = await readJsonBody(req)
-          const path = String(body.path ?? '')
-          if (path === '') return writeJson(res, { ok: false, error: 'missing-path' })
+          const resolved = resolveRel(String(body.root ?? ''), String(body.rel ?? ''))
+          if ('error' in resolved) return writeJson(res, { ok: false, error: resolved.error })
+          const path = resolved.abs
           const depth = Math.min(TREE_MAX_DEPTH, Math.max(1, Math.floor(Number(body.depth) || 3)))
           const maxEntries = Math.min(1000, Math.max(1, Math.floor(Number(body.maxEntries) || TREE_MAX_ENTRIES)))
           try {

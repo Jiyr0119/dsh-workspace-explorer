@@ -4,6 +4,7 @@
     "noEmit": false,
     "declaration": true,
     "emitDeclarationOnly": true,
+    "stripInternal": true,
     "outDir": "lib/types",
     "rootDir": "src"
   },

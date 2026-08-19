@@ -1,6 +1,6 @@
 {
   "name": "@jiyr0119/dsh-workspace-explorer",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "DeepSeek Harness 工作区文件资源管理器(原生插件):右侧面板展示工作区目录树,点击/拖拽插入文件引用,含搜索/预览/国际化 | Native DSH plugin: workspace file-tree panel with click/drag references, search, preview, i18n.",
   "license": "MIT",
   "type": "module",
@@ -78,6 +78,8 @@
   "scripts": {
     "build": "tsdown && tsc -p tsconfig.build.json",
     "prepublishOnly": "npm run build",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
@@ -95,7 +97,8 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "tsdown": "^0.22.14",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "vitest": "^4.1.11"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
