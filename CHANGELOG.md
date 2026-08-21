@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.6.1] - 2026-08-21
+
+### 修复 Fix
+
+- **`@` 触发源自动发现工作区** — `@` 文件菜单不再依赖面板打开;通过 sessions 服务自动获取当前会话的 cwd 作为工作区根目录 / **`@` trigger auto-discovers workspace** — the `@` file menu no longer requires the panel to be open; the current session's cwd is automatically used as the workspace root via the sessions service.
+- **输入桥 fallback** — 当 `DockBridge` 组件未挂载时(会话未激活或 dock 槽位未渲染),通过 `conversation.input` 服务自动设置输入桥,确保拖拽和 `@` 选择能正常插入文本 / **Input bridge fallback** — when the `DockBridge` component is not mounted, the input bridge is automatically set via the `conversation.input` service, ensuring drag-and-drop and `@` selection can insert text.
+- **文件引用格式统一** — `@` 菜单选择、拖拽文件/文件夹、面板点击、多选批量插入全部统一为 `@` 前缀 + `refStyle` 设置(相对/绝对路径) + 目录追加 `/`;拖拽文件夹从目录树格式改为 `@dir/` 引用 / **Unified file reference format** — `@` menu selection, drag-and-drop, panel click, and multi-select batch insert all use the same format: `@` prefix + `refStyle` setting (relative/absolute) + trailing `/` for directories; dragging a folder now inserts `@dir/` instead of a directory tree.
+
 ## [v0.6.0] - 2026-08-21
 
 ### 里程碑 M2 — 写路径 Write path

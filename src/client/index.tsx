@@ -240,12 +240,26 @@ const setBridge = (b: WsBridge | null): void => { bridge = b }
 const getBridge = () => bridge
 
 // ---------- @ 触发源:工作区文件搜索 ----------
-interface FlatFile { rel: string; name: string; type: 'directory' | 'file' }
+interface FlatFile { rel: string; name: string; type: 'directory' | 'file'; path: string }
 
-/** 当前工作区根目录(Panel 打开/切换时同步) */
+/** 当前工作区根目录(Panel 打开/切换时同步;也可由 apply() 通过 sessions 服务自动推导) */
 let activeWorkspaceRoot: string | null = null
 const rootListeners = new Set<(r: string | null) => void>()
-const setActiveRoot = (r: string | null): void => { activeWorkspaceRoot = r; rootListeners.forEach((fn) => fn(r)) }
+const setActiveRoot = (r: string | null): void => {
+  if (r !== activeWorkspaceRoot) {
+    activeWorkspaceRoot = r
+    rootListeners.forEach((fn) => fn(r))
+    if (r !== null) invalidateFileCache() // 根目录变化时清除文件缓存
+  }
+}
+
+/** 从 sessions 服务自动推导工作区根目录(面板未打开时的 fallback) */
+let sessionsCwdRoot: string | null = null
+/** 当前会话的 cwd(用于 @ 引用格式化:判断是否可用相对路径) */
+let activeCwd: string | null = null
+function getEffectiveRoot(): string | null {
+  return activeWorkspaceRoot ?? sessionsCwdRoot
+}
 
 /** 文件列表缓存:root → files */
 let fileCacheRoot: string | null = null
@@ -259,7 +273,10 @@ async function fetchAllFiles(root: string): Promise<FlatFile[]> {
     try {
       const res = await api<TreeResult>('tree', { root, rel: '', depth: 6, maxEntries: 2000 })
       if (!res.ok || !res.entries) return []
-      const files: FlatFile[] = res.entries.map((e) => ({ rel: e.rel, name: e.name, type: e.type }))
+      const files: FlatFile[] = res.entries.map((e) => ({
+        rel: e.rel, name: e.name, type: e.type,
+        path: root.replace(/\/+$/, '') + '/' + e.rel,
+      }))
       fileCacheRoot = root
       fileCache = files
       return files
@@ -453,6 +470,14 @@ function Panel(props: {
   const refAt = (entry: WsEntry): string => entry.type === 'directory' ? `@${refPath(entry)}/` : `@${refPath(entry)}`
   const insertMarker = (entry: WsEntry): void => { getBridge()?.insert(refAt(entry)) }
 
+  // 统一的 @引用格式化:供 @ 触发源和面板共用
+  // file.rel = 相对路径, file.path = 绝对路径, file.type = 'directory' | 'file'
+  const formatAtRef = (rel: string, absPath: string, type: 'directory' | 'file'): string => {
+    const useRel = c.refStyle === 'relative' && root === cwd
+    const p = useRel ? rel : absPath
+    return type === 'directory' ? `@${p}/` : `@${p}`
+  }
+
   // 分页预览:按行加载第 page 页(每页 c.peekLines 行)
   const loadPreviewPage = useCallback(async (entry: WsEntry, page: number, keepMode = false): Promise<void> => {
     setPreview((prev) => ({
@@ -630,15 +655,10 @@ function Panel(props: {
     if (!b) return
     const rels = new Set(selected)
     const list = flatVisible().filter((e) => rels.has(e.rel))
-    // 文件插入 @引用;目录插入目录树
+    // 统一:文件和目录都插入 @引用(与面板点击、@菜单一致)
     const parts: string[] = []
     for (const e of list) {
-      if (e.type === 'directory') {
-        const text = await fetchTreeText(root ?? '', e.rel)
-        if (text) parts.push(text)
-      } else {
-        parts.push(refAt(e))
-      }
+      parts.push(refAt(e))
     }
     if (parts.length > 0) b.insert(parts.join('\n'))
     setSelected(new Set())
@@ -921,14 +941,19 @@ function DrawerRoot(props: {
       const payload = readPayload(e)
       const target = e.target instanceof HTMLElement ? e.target : null
       const inComposer = !!target?.closest('[data-composer-card] textarea')
-      // 目录:任意落点都生成目录树文本后插入(输入框内也会拦截,保证插入的是树而非目录名)
+      // 目录:插入 @引用(与面板点击一致)
       if (payload?.type === 'directory') {
         e.preventDefault(); e.stopPropagation(); setDragKind(null)
-        void (async () => {
-          if (!payload.root) return
-          const text = await fetchTreeText(payload.root, payload.rel ?? '')
-          if (text) getBridge()?.insert(text)
-        })()
+        const b = getBridge()
+        if (b && payload.rel) {
+          const root = payload.root ?? getEffectiveRoot()
+          const useRel = cfg.refStyle === 'relative' && root !== null && root === activeCwd
+          const absPath = root ? `${root.replace(/\/+$/, '')}/${payload.rel}` : payload.rel
+          const p = useRel ? payload.rel : absPath
+          b.insert(`@${p}/`)
+        } else if (!b) {
+          console.warn('[dsh-workspace-explorer] drop: bridge not set, cannot insert directory reference')
+        }
         return
       }
       // 文件:插入 @引用
@@ -937,7 +962,14 @@ function DrawerRoot(props: {
       const b = getBridge()
       if (b && payload?.rel) {
         const isDir = payload.type === 'directory'
-        b.insert(isDir ? `@${payload.rel}/` : `@${payload.rel}`)
+        // 统一格式:尊重 refStyle 设置
+        const root = payload.root ?? getEffectiveRoot()
+        const useRel = cfg.refStyle === 'relative' && root !== null && root === activeCwd
+        const absPath = root ? `${root.replace(/\/+$/, '')}/${payload.rel}` : payload.rel
+        const p = useRel ? payload.rel : absPath
+        b.insert(isDir ? `@${p}/` : `@${p}`)
+      } else if (!b) {
+        console.warn('[dsh-workspace-explorer] drop: bridge not set, cannot insert file reference')
       }
     }
     const onDragEnd = (): void => setDragKind(null)
@@ -1001,6 +1033,75 @@ export function apply(ctx: CtxLike): void {
     }
   }
 
+  // ---------- 自动推导工作区根目录(面板未打开时,从 sessions 服务获取 cwd) ----------
+  // 这样 @ 触发源即使面板未打开也能搜索文件
+  try {
+    ctx.inject(['sessions'], (scope) => {
+      const sessions = (scope as unknown as { sessions?: { list: { subscribe: (fn: () => void) => () => void; getSnapshot: () => { current?: string; byId?: Record<string, { cwd?: string }> } } } }).sessions
+      if (sessions === undefined) return
+      const update = (): void => {
+        const snap = sessions.list.getSnapshot()
+        const currentId = snap.current
+        const currentSummary = currentId && snap.byId ? snap.byId[currentId] : undefined
+        const cwd = currentSummary?.cwd ?? null
+        activeCwd = cwd
+        // 只在面板未主动设置根目录时使用 sessions cwd 作为 fallback
+        if (activeWorkspaceRoot === null) {
+          sessionsCwdRoot = cwd
+          if (cwd !== null) {
+            console.info('[dsh-workspace-explorer] auto-discovered workspace root from session:', cwd)
+          }
+        }
+      }
+      update()
+      return sessions.list.subscribe(update)
+    })
+  } catch {
+    // sessions 服务不可用时静默忽略(不影响核心功能)
+  }
+
+  // ---------- 自动设置输入桥:从 conversation.input 服务获取 inputActions ----------
+  // DockBridge 可能未挂载(会话未激活或 dock 槽位未渲染),这里作为 fallback
+  try {
+    ctx.inject(['sessions', 'conversation'], (scope) => {
+      const sessions = (scope as unknown as { sessions?: { list: { subscribe: (fn: () => void) => () => void; getSnapshot: () => { current?: string } }; scope: (id: string) => unknown } }).sessions
+      const conversation = (scope as unknown as { conversation?: { input: { for: (scope: unknown) => { actions?: { setDraft(text: string): void } } } } }).conversation
+      if (sessions === undefined || conversation === undefined) return
+      const update = (): void => {
+        const snap = sessions.list.getSnapshot()
+        const currentId = snap.current
+        if (!currentId) return
+        try {
+          const actx = sessions.scope(currentId)
+          if (actx === undefined) return
+          const inputFace = conversation.input.for(actx)
+          const inputActions = inputFace?.actions
+          if (inputActions && typeof inputActions.setDraft === 'function') {
+            // 只在 bridge 未设置时更新(DockBridge 优先)
+            if (bridge === null) {
+              setBridge({
+                insert(text: string) {
+                  // 获取当前 draft(通过 DOM 读取或 input face)
+                  const textarea = document.querySelector('[data-composer-card] textarea') as HTMLTextAreaElement | null
+                  const draft = textarea?.value ?? ''
+                  const sep = draft === '' || draft.endsWith('\n') ? '' : '\n'
+                  inputActions.setDraft(draft + sep + text)
+                },
+              })
+              console.info('[dsh-workspace-explorer] bridge set via conversation.input fallback')
+            }
+          }
+        } catch {
+          // session scope 不可用时忽略
+        }
+      }
+      update()
+      return sessions.list.subscribe(update)
+    })
+  } catch {
+    // conversation 服务不可用时静默忽略
+  }
+
   // ---------- 注册 @ 触发源:工作区文件搜索(@纯文本引用) ----------
   // inputTriggers 由 @deepseek-ai/dsh-client-ui-input-trigger 在独立 fiber 上提供(非 root),
   // 直接 ctx.inputTriggers 会抛 "cannot get property inputTriggers without inject"。
@@ -1008,19 +1109,24 @@ export function apply(ctx: CtxLike): void {
   ctx.inject(['inputTriggers'], (scope) => {
     const triggers = (scope as unknown as { inputTriggers?: { registerSource(src: InputTriggerSource): () => void } }).inputTriggers
     if (triggers === undefined) return
+    console.info('[dsh-workspace-explorer] registering @ trigger source')
     return triggers.registerSource({
           trigger: '@',
           name: 'workspace-files',
           order: 10,
 
           async candidates(_session, req) {
-            const root = activeWorkspaceRoot
-            if (!root) return []
+            const root = getEffectiveRoot()
+            if (!root) {
+              console.debug('[dsh-workspace-explorer] @ candidates: no workspace root available')
+              return []
+            }
             const files = await fetchAllFiles(root)
             const q = req.query.toLowerCase()
             const list = q !== ''
               ? files.filter((f) => f.name.toLowerCase().includes(q) || f.rel.toLowerCase().includes(q))
               : files
+            console.debug(`[dsh-workspace-explorer] @ candidates: ${list.length} files from ${root}`)
             return list.slice(0, 50).map((f) => ({
               name: f.name,
               description: f.type === 'directory' ? `${f.rel}/` : f.rel,
@@ -1028,14 +1134,24 @@ export function apply(ctx: CtxLike): void {
           },
 
           onPick(pick) {
-            // 纯文本引用路径:目录带 /,文件带扩展名
-            const rel = pick.candidate.description ?? pick.candidate.name
-            return { text: rel.endsWith('/') ? `@${rel}` : `@${rel}` }
+            // 统一格式:与面板 refAt 一致 — @前缀 + 尊重 refStyle 设置
+            const desc = pick.candidate.description ?? pick.candidate.name
+            const isDir = desc.endsWith('/')
+            const rel = isDir ? desc.slice(0, -1) : desc
+            // 从文件缓存查找对应的绝对路径
+            const cached = fileCache.find((f) => f.rel === rel)
+            const absPath = cached?.path ?? rel
+            const root = getEffectiveRoot()
+            const useRel = cfg.refStyle === 'relative' && root !== null && root === activeCwd
+            const p = useRel ? rel : absPath
+            console.debug('[dsh-workspace-explorer] @ onPick:', isDir ? `@${p}/` : `@${p}`)
+            return { text: isDir ? `@${p}/` : `@${p}` }
           },
 
           lexicon(_session) {
             // 返回文件路径,让 @path/to/file 被高亮装饰
-            if (!activeWorkspaceRoot || fileCache.length === 0) return undefined
+            const root = getEffectiveRoot()
+            if (!root || fileCache.length === 0 || fileCacheRoot !== root) return undefined
             const paths: string[] = []
             for (const f of fileCache) {
               paths.push(f.type === 'directory' ? `${f.rel}/` : f.rel)
