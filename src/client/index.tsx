@@ -7,6 +7,7 @@
  * 浏览器 bundle(src/client/index.tsx → lib/client.js,__ModuleLoader__ 格式)。
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 import styles from './panel.module.css'
 import { basename, extOf, fmtSize, formatTreeBlock } from './format'
 
@@ -41,6 +42,10 @@ const DICTS: Record<string, Record<string, string>> = {
     'add.ws': '添加工作区', 'dir.tree.fail': '目录树生成失败: ',
     'sel.count': '已选 {n} 项', 'sel.insert': '插入所选', 'sel.clear': '清除',
     'preview.page': '第 {n} 页', 'preview.lines': '{n} 行', 'preview.prev': '上一页', 'preview.next': '下一页',
+    'edit': '编辑', 'edit.save': '保存', 'edit.discard': '放弃', 'edit.cancel': '取消',
+    'edit.dirty': '已修改', 'edit.saving': '保存中…', 'edit.save.fail': '保存失败: ',
+    'edit.save.ok': '已保存', 'edit.confirm.discard': '放弃修改？', 'edit.readonly': '只读文件',
+    'edit.preview.tip': '预览 / 编辑 (P)',
     'tab.files': '文件', 'tab.settings': '设置',
     'settings.title': '面板设置', 'settings.general': '通用',
     'settings.hideNoise': '隐藏噪声目录', 'settings.hideNoise.desc': '.git · node_modules · dist 等',
@@ -67,6 +72,10 @@ const DICTS: Record<string, Record<string, string>> = {
     'add.ws': 'Add workspace', 'dir.tree.fail': 'Folder tree failed: ',
     'sel.count': '{n} selected', 'sel.insert': 'Insert', 'sel.clear': 'Clear',
     'preview.page': 'Page {n}', 'preview.lines': '{n} lines', 'preview.prev': 'Previous page', 'preview.next': 'Next page',
+    'edit': 'Edit', 'edit.save': 'Save', 'edit.discard': 'Discard', 'edit.cancel': 'Cancel',
+    'edit.dirty': 'Modified', 'edit.saving': 'Saving…', 'edit.save.fail': 'Save failed: ',
+    'edit.save.ok': 'Saved', 'edit.confirm.discard': 'Discard changes?', 'edit.readonly': 'Read-only',
+    'edit.preview.tip': 'Preview / Edit (P)',
     'tab.files': 'Files', 'tab.settings': 'Settings',
     'settings.title': 'Panel settings', 'settings.general': 'General',
     'settings.hideNoise': 'Hide noise dirs', 'settings.hideNoise.desc': '.git · node_modules · dist …',
@@ -221,9 +230,49 @@ const measurePopup = (): { top: number; height: number } => {
   return { top, height: Math.max(200, bottomLimit - top) }
 }
 
-let bridge: { insert(text: string): void } | null = null
-const setBridge = (b: { insert(text: string): void } | null): void => { bridge = b }
+// ---------- 输入桥接口:追加 @引用 文本 ----------
+interface WsBridge {
+  /** 追加文本到输入框(setDraft) */
+  insert(text: string): void
+}
+let bridge: WsBridge | null = null
+const setBridge = (b: WsBridge | null): void => { bridge = b }
 const getBridge = () => bridge
+
+// ---------- @ 触发源:工作区文件搜索 ----------
+interface FlatFile { rel: string; name: string; type: 'directory' | 'file' }
+
+/** 当前工作区根目录(Panel 打开/切换时同步) */
+let activeWorkspaceRoot: string | null = null
+const rootListeners = new Set<(r: string | null) => void>()
+const setActiveRoot = (r: string | null): void => { activeWorkspaceRoot = r; rootListeners.forEach((fn) => fn(r)) }
+
+/** 文件列表缓存:root → files */
+let fileCacheRoot: string | null = null
+let fileCache: FlatFile[] = []
+let fileCachePromise: Promise<FlatFile[]> | null = null
+
+async function fetchAllFiles(root: string): Promise<FlatFile[]> {
+  if (fileCacheRoot === root && fileCache.length > 0) return fileCache
+  if (fileCachePromise) return fileCachePromise
+  fileCachePromise = (async () => {
+    try {
+      const res = await api<TreeResult>('tree', { root, rel: '', depth: 6, maxEntries: 2000 })
+      if (!res.ok || !res.entries) return []
+      const files: FlatFile[] = res.entries.map((e) => ({ rel: e.rel, name: e.name, type: e.type }))
+      fileCacheRoot = root
+      fileCache = files
+      return files
+    } catch {
+      return []
+    } finally {
+      fileCachePromise = null
+    }
+  })()
+  return fileCachePromise
+}
+
+function invalidateFileCache(): void { fileCacheRoot = null; fileCache = [] }
 
 // ---------- 会话头部工具区按钮(与 session log 同排:功能名称 + 图标胶囊) ----------
 function HeaderAction() {
@@ -334,7 +383,7 @@ function Panel(props: {
   const [dirs, setDirs] = useState<Record<string, { loading: boolean; error: string | null; entries: WsEntry[]; truncated: boolean }>>({})
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [filter, setFilter] = useState('')
-  const [preview, setPreview] = useState<{ entry: WsEntry; loading: boolean; data: PeekResult | null; error: string | null; page: number } | null>(null)
+  const [preview, setPreview] = useState<{ entry: WsEntry; loading: boolean; data: PeekResult | null; error: string | null; page: number; mode: 'preview' | 'edit'; editContent: string; dirty: boolean; saving: boolean; saveError: string | null } | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [selAnchor, setSelAnchor] = useState<string | null>(null)
   const [tab, setTab] = useState<'files' | 'settings'>('files')
@@ -375,13 +424,17 @@ function Panel(props: {
     if (root === null) return
     setDirs({}); setExpanded({}); setPreview(null); setSelected(new Set()); setSelAnchor(null)
     void loadDir(root, '')
+    // 同步工作区根目录给 @ 触发源
+    setActiveRoot(root)
+    return () => setActiveRoot(null)
   }, [root, loadDir])
 
-  // 噪声目录开关变化时,重新加载已展开的目录
+  // 噪声目录开关变化时,重新加载已展开的目录 + 清除 @ 触发源的文件缓存
   useEffect(() => {
     if (root === null) return
     void loadDir(root, '')
     Object.keys(expanded).forEach((rel) => { if (rel !== '') void loadDir(root, rel) })
+    invalidateFileCache()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [c.hideNoise])
 
@@ -395,18 +448,38 @@ function Panel(props: {
     void loadDir(root, '')
     Object.keys(expanded).forEach((rel) => { if (rel !== '') void loadDir(root, rel) })
   }
-  const markerFor = (entry: WsEntry): string => (c.refStyle === 'relative' && root === cwd) ? `[file: ${entry.rel}]` : `[file: ${entry.path}]`
-  const insertMarker = (entry: WsEntry): void => { const b = getBridge(); if (b) b.insert(markerFor(entry)) }
+  const refPath = (entry: WsEntry): string => (c.refStyle === 'relative' && root === cwd) ? entry.rel : entry.path
+  /** 生成 @引用 文本:目录带 / 后缀,文件带扩展名 */
+  const refAt = (entry: WsEntry): string => entry.type === 'directory' ? `@${refPath(entry)}/` : `@${refPath(entry)}`
+  const insertMarker = (entry: WsEntry): void => { getBridge()?.insert(refAt(entry)) }
 
   // 分页预览:按行加载第 page 页(每页 c.peekLines 行)
-  const loadPreviewPage = useCallback(async (entry: WsEntry, page: number): Promise<void> => {
-    setPreview({ entry, loading: true, data: null, error: null, page })
+  const loadPreviewPage = useCallback(async (entry: WsEntry, page: number, keepMode = false): Promise<void> => {
+    setPreview((prev) => ({
+      entry, loading: true, data: null, error: null, page,
+      mode: keepMode && prev?.entry.rel === entry.rel ? prev.mode : 'preview',
+      editContent: keepMode && prev?.entry.rel === entry.rel ? prev.editContent : '',
+      dirty: keepMode && prev?.entry.rel === entry.rel ? prev.dirty : false,
+      saving: false, saveError: null,
+    }))
     try {
       const res = await api<PeekResult>('peek', { root: root ?? '', rel: entry.rel, offset: page * c.peekLines, limit: c.peekLines })
       if (!res.ok) throw new Error(res.error ?? 'unknown')
-      setPreview({ entry, loading: false, data: res, error: null, page })
+      setPreview((prev) => ({
+        entry, loading: false, data: res, error: null, page,
+        mode: prev?.entry.rel === entry.rel ? prev.mode : 'preview',
+        editContent: prev?.entry.rel === entry.rel ? prev.editContent : '',
+        dirty: prev?.entry.rel === entry.rel ? prev.dirty : false,
+        saving: false, saveError: null,
+      }))
     } catch (err) {
-      setPreview({ entry, loading: false, data: null, error: String((err as Error)?.message ?? err), page })
+      setPreview((prev) => ({
+        entry, loading: false, data: null, error: String((err as Error)?.message ?? err), page,
+        mode: prev?.entry.rel === entry.rel ? prev.mode : 'preview',
+        editContent: prev?.entry.rel === entry.rel ? prev.editContent : '',
+        dirty: prev?.entry.rel === entry.rel ? prev.dirty : false,
+        saving: false, saveError: null,
+      }))
     }
   }, [root, c.peekLines])
   const openPreview = (entry: WsEntry): void => { void loadPreviewPage(entry, 0) }
@@ -423,9 +496,61 @@ function Panel(props: {
     if (b) b.insert(res.content)
   }
 
+  // ---------- 编辑模式 ----------
+  const enterEditMode = async (): Promise<void> => {
+    if (!preview || preview.loading || preview.error || !preview.data || root === null) return
+    // 加载完整文件内容用于编辑
+    const d = preview.data
+    let fullContent = d.content ?? ''
+    if (d.binary || (d.size ?? 0) > 4 * 1024 * 1024) return // 超大文件不编辑
+    if (d.lineCount != null && d.lineCount > c.peekLines) {
+      // 内容不完整,加载全文
+      const res = await api<PeekResult>('peek', { root, rel: preview.entry.rel, whole: true })
+      if (!res.ok || res.content == null) return
+      fullContent = res.content
+    }
+    setPreview((prev) => prev ? { ...prev, mode: 'edit', editContent: fullContent, dirty: false, saveError: null } : prev)
+  }
+  const updateEditContent = (content: string): void => {
+    setPreview((prev) => prev ? { ...prev, editContent: content, dirty: true } : prev)
+  }
+  const saveFile = async (): Promise<void> => {
+    if (!preview || !root || preview.mode !== 'edit') return
+    setPreview((prev) => prev ? { ...prev, saving: true, saveError: null } : prev)
+    try {
+      const res = await api<{ ok: boolean; error?: string; size?: number }>('write', {
+        root, rel: preview.entry.rel, content: preview.editContent, expectedSize: preview.entry.size,
+      })
+      if (!res.ok) {
+        if (res.error === 'file-changed') {
+          setPreview((prev) => prev ? { ...prev, saving: false, saveError: tr('edit.save.fail') + '文件已被外部修改' } : prev)
+        } else {
+          setPreview((prev) => prev ? { ...prev, saving: false, saveError: tr('edit.save.fail') + (res.error ?? 'unknown') } : prev)
+        }
+        return
+      }
+      // 保存成功:更新 entry.size,切回预览模式
+      setPreview((prev) => prev ? {
+        ...prev, saving: false, saveError: null, dirty: false, mode: 'preview',
+        entry: { ...prev.entry, size: res.size ?? prev.entry.size },
+      } : prev)
+      // 刷新文件树(反映可能的大小变化)
+      if (root) void loadDir(root, '')
+    } catch (err) {
+      setPreview((prev) => prev ? { ...prev, saving: false, saveError: tr('edit.save.fail') + String((err as Error)?.message ?? err) } : prev)
+    }
+  }
+  const discardEdit = (): void => {
+    if (preview?.dirty && !window.confirm(tr('edit.confirm.discard'))) return
+    setPreview((prev) => prev ? { ...prev, mode: 'preview', editContent: '', dirty: false, saveError: null } : prev)
+  }
+  const cancelEdit = (): void => {
+    setPreview((prev) => prev ? { ...prev, mode: 'preview', editContent: '', dirty: false, saveError: null } : prev)
+  }
+
   // 拖拽:文件 → 引用标记;目录 → 目录树文本(落点处异步生成)
   const onDragStart = (ev: React.DragEvent, entry: WsEntry): void => {
-    ev.dataTransfer.setData('text/plain', entry.type === 'directory' ? entry.name : markerFor(entry))
+    ev.dataTransfer.setData('text/plain', entry.type === 'directory' ? entry.name : refAt(entry))
     ev.dataTransfer.setData(MARKER, JSON.stringify({ root, rel: entry.rel, name: entry.name, type: entry.type }))
     ev.dataTransfer.effectAllowed = 'copy'
     props.onDraggingChange(entry.type === 'directory' ? 'dir' : 'file')
@@ -505,13 +630,14 @@ function Panel(props: {
     if (!b) return
     const rels = new Set(selected)
     const list = flatVisible().filter((e) => rels.has(e.rel))
+    // 文件插入 @引用;目录插入目录树
     const parts: string[] = []
     for (const e of list) {
       if (e.type === 'directory') {
         const text = await fetchTreeText(root ?? '', e.rel)
         if (text) parts.push(text)
       } else {
-        parts.push(markerFor(e))
+        parts.push(refAt(e))
       }
     }
     if (parts.length > 0) b.insert(parts.join('\n'))
@@ -522,9 +648,10 @@ function Panel(props: {
   const rowFor = (entry: WsEntry, depth: number, isExp: boolean): React.ReactNode => {
     const isDir = entry.type === 'directory'
     const isSel = selected.has(entry.rel)
+    const isPreviewActive = preview?.entry.rel === entry.rel
     return (
       <div key={entry.rel} role="button" tabIndex={0}
-        className={C('dshwe-row') + (isDir ? ` ${C('dshwe-row-dir')}` : ` ${C('dshwe-row-file')}`) + (isSel ? ` ${C('dshwe-row-sel')}` : '')}
+        className={C('dshwe-row') + (isDir ? ` ${C('dshwe-row-dir')}` : ` ${C('dshwe-row-file')}`) + (isSel ? ` ${C('dshwe-row-sel')}` : '') + (isPreviewActive ? ` ${C('dshwe-row-active')}` : '')}
         style={{ paddingLeft: 10 + depth * 16 }}
         title={entry.path + (isDir ? '' : ` · ${tr('row.tip')}`)}
         draggable
@@ -535,16 +662,20 @@ function Panel(props: {
           else if (ev.key === 'p' && !isDir) { ev.preventDefault(); void openPreview(entry) }
         }}>
         <span className={C('dshwe-chev-slot')}>{isDir ? <ChevronSvg open={isExp} /> : null}</span>
+        {!isDir ? (
+          <button type="button" className={C('dshwe-preview-btn') + (isPreviewActive ? ` ${C('dshwe-preview-btn-on')}` : '')}
+            title={tr('edit.preview.tip')} aria-label={tr('edit.preview.tip')}
+            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }}
+            onClick={(e) => { e.stopPropagation(); void openPreview(entry) }}>
+            <svg viewBox="0 0 16 16" width={15} height={15} aria-hidden="true">
+              <path d="M1.5 8s2.6-4.5 6.5-4.5S14.5 8 14.5 8 11.9 12.5 8 12.5 1.5 8 1.5 8zM8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" fill="none" stroke="currentColor" strokeWidth={1.3} strokeLinejoin="round" />
+            </svg>
+          </button>
+        ) : null}
         {iconFor(entry, isExp)}
         <span className={C('dshwe-name')}>{entry.name}</span>
         {!isDir && c.showSize && entry.size != null ? <span className={C('dshwe-size')}>{fmtSize(entry.size)}</span> : null}
-        {!isDir ? (
-          <button type="button" className={C('dshwe-eye')} title={tr('preview.tip')} aria-label={tr('preview.tip')}
-            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }}
-            onClick={(e) => { e.stopPropagation(); void openPreview(entry) }}>
-            <svg viewBox="0 0 16 16" width={13} height={13} aria-hidden="true"><path d="M1.5 8s2.6-4.5 6.5-4.5S14.5 8 14.5 8 11.9 12.5 8 12.5 1.5 8 1.5 8zM8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" fill="none" stroke="currentColor" strokeWidth={1.3} strokeLinejoin="round" /></svg>
-          </button>
-        ) : null}
+        {!isDir && isPreviewActive ? <span className={C('dshwe-row-preview-dot')} /> : null}
       </div>
     )
   }
@@ -600,33 +731,66 @@ function Panel(props: {
   let pv: React.ReactNode = null
   if (preview) {
     const d = preview.data
-    let contentArea: React.ReactNode
-    if (preview.loading) contentArea = <div className={C('dshwe-note')}><span className={C('dshwe-spin')} />{tr('read')}</div>
-    else if (preview.error) contentArea = <div className={C('dshwe-note dshwe-note-err')}>{tr('read.fail')}{preview.error}</div>
-    else if (d?.binary) contentArea = <div className={C('dshwe-note')}>{tr('binary')}</div>
-    else contentArea = <pre className={C('dshwe-preview-pre')}>{d?.content ?? ''}</pre>
+    const isEdit = preview.mode === 'edit'
     const canInline = !preview.loading && !preview.error && !!d && !d.binary && (d.size ?? 0) <= 32768
+    const canEdit = !preview.loading && !preview.error && !!d && !d.binary && (d.size ?? 0) <= 4 * 1024 * 1024
     const metaBits: string[] = []
     if (preview.entry.size != null) metaBits.push(fmtSize(preview.entry.size))
     if (d?.lineCount != null && d.lineCount > 0) metaBits.push(tr('preview.lines', { n: d.lineCount }))
-    if (preview.page > 0 || d?.hasMore === true) metaBits.push(tr('preview.page', { n: preview.page + 1 }))
+    if (!isEdit && (preview.page > 0 || d?.hasMore === true)) metaBits.push(tr('preview.page', { n: preview.page + 1 }))
+    if (isEdit && preview.dirty) metaBits.push(tr('edit.dirty'))
+
+    let contentArea: React.ReactNode
+    if (preview.loading) {
+      contentArea = <div className={C('dshwe-note')}><span className={C('dshwe-spin')} />{tr('read')}</div>
+    } else if (preview.error) {
+      contentArea = <div className={C('dshwe-note dshwe-note-err')}>{tr('read.fail')}{preview.error}</div>
+    } else if (d?.binary) {
+      contentArea = <div className={C('dshwe-note')}>{tr('binary')}</div>
+    } else if (isEdit) {
+      contentArea = (
+        <textarea className={C('dshwe-editor')} value={preview.editContent}
+          onChange={(e) => updateEditContent(e.target.value)}
+          spellCheck={false} />
+      )
+    } else {
+      contentArea = <pre className={C('dshwe-preview-pre')}>{d?.content ?? ''}</pre>
+    }
+
     pv = (
-      <div className={C('dshwe-preview')}>
+      <div className={C('dshwe-preview-panel')}>
         <div className={C('dshwe-preview-head')}>
           <div className={C('dshwe-preview-name')}>{preview.entry.name}</div>
           <div className={C('dshwe-preview-meta')}>{metaBits.join(' · ')}</div>
-          <button type="button" className={C('dshwe-pager-btn')} disabled={preview.page === 0 || preview.loading} onClick={previewPrev} title={tr('preview.prev')} aria-label={tr('preview.prev')}>‹</button>
-          <button type="button" className={C('dshwe-pager-btn')} disabled={d?.hasMore !== true || preview.loading} onClick={previewNext} title={tr('preview.next')} aria-label={tr('preview.next')}>›</button>
-          <button type="button" className={C('dshwe-icobtn')} onClick={() => setPreview(null)} title={tr('close.preview')} aria-label={tr('close.preview')}>
-            <svg viewBox="0 0 16 16" width={13} height={13} aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" /></svg>
-          </button>
+          {isEdit ? (
+            <>
+              {preview.saving ? <span className={C('dshwe-edit-saving')}>{tr('edit.saving')}</span> : null}
+              {preview.saveError ? <span className={C('dshwe-edit-saveerr')}>{preview.saveError}</span> : null}
+              <button type="button" className={C('dshwe-prevbtn')} onClick={() => void saveFile()} disabled={preview.saving || !preview.dirty}>{tr('edit.save')}</button>
+              <button type="button" className={C('dshwe-prevbtn')} onClick={discardEdit}>{tr('edit.discard')}</button>
+              <button type="button" className={C('dshwe-prevbtn')} style={{ width: 28, padding: 0 }} onClick={cancelEdit} title={tr('edit.cancel')} aria-label={tr('edit.cancel')}>
+                <svg viewBox="0 0 16 16" width={13} height={13} aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" /></svg>
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="button" className={C('dshwe-pager-btn')} disabled={preview.page === 0 || preview.loading} onClick={previewPrev} title={tr('preview.prev')} aria-label={tr('preview.prev')}>‹</button>
+              <button type="button" className={C('dshwe-pager-btn')} disabled={d?.hasMore !== true || preview.loading} onClick={previewNext} title={tr('preview.next')} aria-label={tr('preview.next')}>›</button>
+              {canEdit ? <button type="button" className={C('dshwe-prevbtn')} onClick={() => void enterEditMode()}>{tr('edit')}</button> : null}
+              <button type="button" className={C('dshwe-icobtn')} onClick={() => setPreview(null)} title={tr('close.preview')} aria-label={tr('close.preview')}>
+                <svg viewBox="0 0 16 16" width={13} height={13} aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" /></svg>
+              </button>
+            </>
+          )}
         </div>
         {contentArea}
-        <div className={C('dshwe-preview-actions')}>
-          <button type="button" className={C('dshwe-prevbtn')} onClick={() => insertMarker(preview.entry)}>{tr('btn.ref')}</button>
-          <button type="button" className={C('dshwe-prevbtn dshwe-prevbtn-primary')} disabled={!canInline}
-            title={canInline ? tr('btn.content.tip') : tr('btn.content.no')} onClick={() => void insertContent()}>{tr('btn.content')}</button>
-        </div>
+        {!isEdit ? (
+          <div className={C('dshwe-preview-actions')}>
+            <button type="button" className={C('dshwe-prevbtn')} onClick={() => insertMarker(preview.entry)}>{tr('btn.ref')}</button>
+            <button type="button" className={C('dshwe-prevbtn')} disabled={!canInline}
+              title={canInline ? tr('btn.content.tip') : tr('btn.content.no')} onClick={() => void insertContent()}>{tr('btn.content')}</button>
+          </div>
+        ) : null}
       </div>
     )
   }
@@ -656,12 +820,17 @@ function Panel(props: {
           <button type="button" className={C('dshwe-prevbtn')} onClick={() => { setSelected(new Set()); setSelAnchor(null) }}>{tr('sel.clear')}</button>
         </div>
       ) : null}
-      {pv}
     </>
   )
 
   return (
-    <div className={C('dshwe-panel')}>
+    <div className={C('dshwe-panel')} ref={(el) => {
+      // 通知 popup 更新宽度:preview 打开时撑宽,关闭时缩回
+      if (el?.parentElement) {
+        const expanded = !!pv
+        el.parentElement.style.width = expanded ? `calc(var(--dshwe-base-w, 384px) + 340px)` : `var(--dshwe-base-w, 384px)`
+      }
+    }}>
       <div className={C('dshwe-head')}>
         <span className={C('dshwe-head-ico')}>
           <svg viewBox="0 0 16 16" width={17} height={17} aria-hidden="true"><path d={FOLDER_D} fill="currentColor" /></svg>
@@ -686,7 +855,12 @@ function Panel(props: {
           <GearSvg /><span>{tr('tab.settings')}</span><span className={C('dshwe-tab-ind')} />
         </button>
       </div>
-      {tab === 'files' ? filesBody : <div className={C('dshwe-tabbody')}><SettingsView /></div>}
+      {tab === 'files' ? (
+        <div className={C('dshwe-body')}>
+          {pv ? <div className={C('dshwe-preview-slot')}>{pv}</div> : null}
+          <div className={C('dshwe-tree-col')}>{filesBody}</div>
+        </div>
+      ) : <div className={C('dshwe-tabbody')}><SettingsView /></div>}
     </div>
   )
 }
@@ -757,11 +931,14 @@ function DrawerRoot(props: {
         })()
         return
       }
-      // 文件:输入框内交给原生光标插入,其他位置追加引用
+      // 文件:插入 @引用
       if (inComposer) { setDragKind(null); return }
       e.preventDefault(); e.stopPropagation(); setDragKind(null)
-      const markerText = e.dataTransfer?.getData('text/plain') ?? ''
-      if (markerText !== '') getBridge()?.insert(markerText)
+      const b = getBridge()
+      if (b && payload?.rel) {
+        const isDir = payload.type === 'directory'
+        b.insert(isDir ? `@${payload.rel}/` : `@${payload.rel}`)
+      }
     }
     const onDragEnd = (): void => setDragKind(null)
     document.addEventListener('dragover', onDragOver, true)
@@ -776,7 +953,7 @@ function DrawerRoot(props: {
   return (
     <div className={C('dshwe-layer')}>
       {dragKind !== null ? <div className={C('dshwe-hint')}><div className={C('dshwe-hint-chip')}><svg viewBox="0 0 16 16" width={16} height={16} aria-hidden="true"><path d="M8 3.5v6M5.7 7.2L8 9.5l2.3-2.3M3.5 12.5h9" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" /></svg>{dragKind === 'dir' ? tr('drop.hint.dir') : tr('drop.hint')}</div></div> : null}
-      {on || closing ? <div className={C('dshwe-popup') + (shown ? ` ${C('dshwe-popup-on')}` : '')} style={{ top: rect.top, height: rect.height, width: c.width }}><Panel {...props} onDraggingChange={setDragKind} /></div> : null}
+      {on || closing ? <div className={C('dshwe-popup') + (shown ? ` ${C('dshwe-popup-on')}` : '')} style={{ top: rect.top, height: rect.height, '--dshwe-base-w': `${c.width}px` } as React.CSSProperties}><Panel {...props} onDraggingChange={setDragKind} /></div> : null}
     </div>
   )
 }
@@ -795,6 +972,7 @@ interface SlotsLike {
 interface CtxLike {
   get(name: string): unknown
   effect(fn: () => () => void): void
+  inject(deps: string[], callback: (scope: unknown) => unknown): void
 }
 
 export const inject = ['slots', 'locale']
@@ -822,6 +1000,51 @@ export function apply(ctx: CtxLike): void {
       console.warn('locale init failed, fallback zh', String(err))
     }
   }
+
+  // ---------- 注册 @ 触发源:工作区文件搜索(@纯文本引用) ----------
+  // inputTriggers 由 @deepseek-ai/dsh-client-ui-input-trigger 在独立 fiber 上提供(非 root),
+  // 直接 ctx.inputTriggers 会抛 "cannot get property inputTriggers without inject"。
+  // 用 ctx.inject 动态注入:inputTriggers 就绪时注册源、卸载时自动摘除,且不阻塞主插件。
+  ctx.inject(['inputTriggers'], (scope) => {
+    const triggers = (scope as unknown as { inputTriggers?: { registerSource(src: InputTriggerSource): () => void } }).inputTriggers
+    if (triggers === undefined) return
+    return triggers.registerSource({
+          trigger: '@',
+          name: 'workspace-files',
+          order: 10,
+
+          async candidates(_session, req) {
+            const root = activeWorkspaceRoot
+            if (!root) return []
+            const files = await fetchAllFiles(root)
+            const q = req.query.toLowerCase()
+            const list = q !== ''
+              ? files.filter((f) => f.name.toLowerCase().includes(q) || f.rel.toLowerCase().includes(q))
+              : files
+            return list.slice(0, 50).map((f) => ({
+              name: f.name,
+              description: f.type === 'directory' ? `${f.rel}/` : f.rel,
+            }))
+          },
+
+          onPick(pick) {
+            // 纯文本引用路径:目录带 /,文件带扩展名
+            const rel = pick.candidate.description ?? pick.candidate.name
+            return { text: rel.endsWith('/') ? `@${rel}` : `@${rel}` }
+          },
+
+          lexicon(_session) {
+            // 返回文件路径,让 @path/to/file 被高亮装饰
+            if (!activeWorkspaceRoot || fileCache.length === 0) return undefined
+            const paths: string[] = []
+            for (const f of fileCache) {
+              paths.push(f.type === 'directory' ? `${f.rel}/` : f.rel)
+              if (paths.length >= 500) break
+            }
+            return paths
+          },
+        })
+  })
 
   slots.inject('conversation.session.header.utilities', () => slots.register(
     { name: 'conversation.session.header.utilities', id: 'workspace-explorer-drawer', order: 20, label: () => tr('drawer.tip') },

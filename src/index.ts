@@ -10,7 +10,7 @@
  * 安全边界:list/peek/tree 全部以「工作区根目录 + 相对路径」寻址,服务端校验 rel
  * 不含 ''/./.. 段,任何文件读写都被约束在工作区根目录内,杜绝任意路径读取。
  */
-import { open, readdir, readFile, stat } from 'node:fs/promises'
+import { open, readdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import type { Context } from 'cordis'
 
@@ -293,6 +293,34 @@ export default {
             const budget = { remaining: maxEntries }
             await buildTreeNodes(path, '', depth, budget, entries)
             return writeJson(res, { ok: true, name, entries, entryCount: entries.length, truncated: budget.remaining <= 0 })
+          } catch (err) {
+            return writeJson(res, { ok: false, error: err instanceof Error ? err.message : String(err) })
+          }
+        },
+      },
+      {
+        kind: 'exact',
+        path: '/dsh-we/api/write',
+        handler: async (req, res) => {
+          const body = await readJsonBody(req)
+          const resolved = resolveRel(String(body.root ?? ''), String(body.rel ?? ''))
+          if ('error' in resolved) return writeJson(res, { ok: false, error: resolved.error })
+          const abs = resolved.abs
+          const content = typeof body.content === 'string' ? body.content : null
+          if (content === null) return writeJson(res, { ok: false, error: 'missing-content' })
+          try {
+            // change detection:对比当前文件大小与客户端传来的 expectedSize
+            if (typeof body.expectedSize === 'number') {
+              try {
+                const info = await stat(abs)
+                if (info.size !== body.expectedSize) {
+                  return writeJson(res, { ok: false, error: 'file-changed', currentSize: info.size })
+                }
+              } catch { /* 文件不存在则允许写入(新建) */ }
+            }
+            await writeFile(abs, content, 'utf-8')
+            const info = await stat(abs)
+            return writeJson(res, { ok: true, size: info.size })
           } catch (err) {
             return writeJson(res, { ok: false, error: err instanceof Error ? err.message : String(err) })
           }

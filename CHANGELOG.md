@@ -1,5 +1,25 @@
 # Changelog
 
+## [v0.6.0] - 2026-08-21
+
+### 里程碑 M2 — 写路径 Write path
+
+- **Split view 预览面板** — 预览从底部弹窗改为左侧滑出面板(340px),文件树被推向右侧,弹窗宽度自动撑宽并带平滑过渡动画 / **Split view preview panel** — preview moves from bottom popup to a left-side sliding panel (340px), the file tree is pushed right, and the popup width animates smoothly.
+- **文件图标可点击** — 文件行新增👁预览按钮(在文件图标前),点击打开左侧预览面板;当前正在预览的文件行显示蓝色圆点指示器 / **Clickable preview icon** — a 👁 preview button appears before the file icon in each file row; clicking opens the left preview panel; the active file shows a blue dot indicator.
+- **文件编辑模式** — 预览面板支持编辑:点击「编辑」按钮进入 textarea 编辑态,支持保存/放弃/取消;保存时检测文件外部修改(对比文件大小) / **File editing mode** — the preview panel supports editing: click "Edit" to enter textarea mode with save/discard/cancel; save detects external file changes (size comparison).
+- **Host 写入路由** — 新增 `/dsh-we/api/write` 路由,支持文件写入与 change detection / **Host write route** — new `/dsh-we/api/write` route with file writing and change detection.
+- **按钮样式统一** — 所有操作按钮(插入引用/插入内容/保存/放弃/编辑)使用统一样式 / **Unified button styles** — all action buttons (insert reference/insert content/save/discard/edit) use consistent styling.
+
+### 开发体验 Developer experience
+
+- **本地调试文档** — 新增 `docs/local-debugging.md`,完整记录 dev profile 搭建、symlink 链接、快捷脚本使用 / **Local debugging guide** — new `docs/local-debugging.md` documenting dev profile setup, symlink linking, and helper scripts.
+- **dev profile 快捷脚本** — `~/.dsh/profiles/dev/add-plugin.sh` 和 `rm-plugin.sh` 支持一键添加/移除本地插件 / **Dev profile helper scripts** — one-click add/remove local plugins.
+
+### 修复 Fix
+
+- **按钮高度统一** — 所有 `dshwe-prevbtn` 按钮统一为 height:28px、padding:0 10px / **Unified button height** — all `dshwe-prevbtn` buttons now use height:28px, padding:0 10px.
+- **分页按钮圆角统一** — `dshwe-pager-btn` border-radius 从 7px 改为 8px,与其他按钮一致 / **Unified pager border-radius** — `dshwe-pager-btn` border-radius changed from 7px to 8px.
+
 ## [v0.5.2] - 2026-08-19
 
 ### 单元测试接入 Unit tests
