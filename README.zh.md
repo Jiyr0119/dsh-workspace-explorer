@@ -16,7 +16,7 @@
 
 ![dsh-workspace-explorer 演示](demo/preview.gif)
 
-*演示 GIF(v0.6.0):「工作区文件」胶囊入口、分页预览面板、文件编辑、多选批量插入、目录拖拽 → 紧凑目录树文本、分页预览与设置页。*
+*演示 GIF(录制于 v0.5.1):「工作区文件」胶囊入口、多选批量插入、目录拖拽 → 紧凑目录树文本、分页预览与设置页。v0.6.0 的分屏预览与文件编辑见下方截图。*
 
 <details>
 <summary><b>截图</b> Screenshots</summary>
@@ -24,6 +24,10 @@
 ![面板](assets/screenshots/panel.png)
 
 ![目录树](assets/screenshots/tree.png)
+
+![分屏预览](assets/screenshots/preview.png)
+
+![编辑模式](assets/screenshots/edit.png)
 
 ![插入并发送](assets/screenshots/insert.png)
 
@@ -122,7 +126,7 @@ dsh-workspace-explorer/
 
 ## 版本
 
-当前版本 **v0.6.0** — 会话头部入口升级为**「工作区文件」胶囊(功能名称 + 文件夹图标)**,与 DSH 原生 Session log 按钮同款样式;演示 GIF 已重录,展示新入口与 M1 读路径特性(分页预览面板、文件编辑、多选批量插入、目录拖拽生成目录树、分页预览、设置页)。
+当前版本 **v0.6.0** — **M2 写路径**:点击文件名前的 👁 打开 **340px 分屏预览面板**(文件树在右侧保持可见),预览面板内可直接**编辑文件**(textarea 编辑态 + 保存/放弃/取消、「已修改」脏标记,保存时检测文件外部修改)。
 变更记录见 [CHANGELOG.md](./CHANGELOG.md)。
 
 ## Roadmap

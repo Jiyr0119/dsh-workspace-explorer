@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>dsh-workspace-explorer · Interactive Demo</title>
-<meta name="description" content="Interactive mock preview of the dsh-workspace-explorer plugin for DeepSeek Harness: session-header entry, workspace file tree panel with click / drag / multi-select references, folder tree insertion and paginated preview." />
+<meta name="description" content="Interactive mock preview of the dsh-workspace-explorer plugin for DeepSeek Harness: session-header entry, split-view preview / edit panel, workspace file tree with click / drag / multi-select references, folder tree insertion and paginated preview." />
 <style>
   * { box-sizing: border-box; }
   html, body { height: 100%; }
@@ -113,6 +113,7 @@
   /* ---- 左侧:假聊天区 ---- */
   .demo-chat { position: absolute; inset: 0; display: flex; flex-direction: column; padding-top: 49px; transition: padding-right .25s ease; }
   .demo-stage.panel-open .demo-chat { padding-right: 404px; }
+  .demo-stage.panel-open.preview-open .demo-chat { padding-right: 744px; }
   .demo-log { flex: 1; overflow: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
   .demo-log-empty { color: #5d646e; font-size: 12.5px; }
   .demo-msg {
@@ -179,7 +180,7 @@
   }
   .dshwe-tab-on .dshwe-tab-ind { opacity: 1; transform: scaleX(1); }
   .dshwe-tabbody { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-  .dshwe-popup[hidden], .dshwe-tabbody[hidden], .dshwe-selbar[hidden], .dshwe-preview[hidden], .dshwe-hint[hidden] { display: none !important; }
+  .dshwe-popup[hidden], .dshwe-tabbody[hidden], .dshwe-selbar[hidden], .dshwe-preview-slot[hidden], .dshwe-hint[hidden] { display: none !important; }
 
   .dshwe-selrow { display: flex; gap: 8px; padding: 10px 16px 6px; align-items: center; }
   .dshwe-sel { flex: 1; min-width: 0; height: 30px; background: transparent; color: #e8e8e8; border: 1px solid rgba(255,255,255,.12); border-radius: 8px; padding: 0 8px; font: inherit; font-size: 12.5px; outline: none; }
@@ -210,10 +211,6 @@
   .dshwe-row-sel { background: rgba(65,118,230,.16); box-shadow: inset 2px 0 0 #4176e6; }
   .dshwe-row-sel:hover { background: rgba(65,118,230,.24); }
   .dshwe-size { flex: none; color: #8a8a8a; font-size: 11px; font-variant-numeric: tabular-nums; padding-left: 6px; }
-  .dshwe-eye, .dshwe-insert { flex: none; display: inline-flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .12s ease; color: #9a9a9a; cursor: pointer; }
-  .dshwe-eye:hover { color: #6ea8fe; }
-  .dshwe-insert { color: #6ea8fe; }
-  .dshwe-row:hover .dshwe-eye, .dshwe-row:hover .dshwe-insert { opacity: 1; }
 
   .dshwe-selbar { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-top: 1px solid rgba(255,255,255,.12); background: #222426; flex: none; }
   .dshwe-selbar-count { flex: 1; min-width: 0; font-size: 12px; color: #e8e8e8; font-variant-numeric: tabular-nums; }
@@ -225,12 +222,49 @@
   .dshwe-pager-btn:hover:not(:disabled) { color: #e8e8e8; background: rgba(255,255,255,.08); }
   .dshwe-pager-btn:disabled { opacity: .4; cursor: not-allowed; }
 
-  .dshwe-preview { flex: none; max-height: 46%; display: flex; flex-direction: column; border-top: 1px solid rgba(255,255,255,.12); background: #222426; }
-  .dshwe-preview-head { display: flex; align-items: center; gap: 8px; padding: 10px 14px 6px; }
+  /* ---- 文件行预览按钮(👁,常显;与真实插件一致) ---- */
+  .dshwe-preview-btn {
+    flex: none; display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; border: 0; border-radius: 6px; cursor: pointer;
+    background: transparent; color: #9a9a9a;
+    transition: background .12s ease, color .12s ease;
+  }
+  .dshwe-preview-btn:hover { background: rgba(255,255,255,.08); color: #6ea8fe; }
+  .dshwe-preview-btn-on { color: #6ea8fe; }
+  .dshwe-row-active { background: rgba(65,118,230,.08); }
+  .dshwe-row-active:hover { background: rgba(65,118,230,.14); }
+  .dshwe-row-preview-dot { width: 6px; height: 6px; border-radius: 50%; background: #4176e6; flex: none; margin-left: 4px; }
+
+  /* ---- Split view:左侧预览/编辑面板 + 右侧文件树 ---- */
+  .dshwe-body { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+  .dshwe-tree-col { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .dshwe-preview-slot {
+    flex: none; width: 340px; display: flex; flex-direction: column;
+    border-right: 1px solid rgba(255,255,255,.12);
+    background: #222426;
+    animation: dshwe-slide-in .2s ease;
+  }
+  @keyframes dshwe-slide-in { from { width: 0; opacity: 0 } to { width: 340px; opacity: 1 } }
+  @media (prefers-reduced-motion: reduce) { .dshwe-preview-slot { animation: none } }
+
+  .dshwe-preview-panel { display: flex; flex-direction: column; flex: 1; min-width: 0; overflow: hidden; }
+  .dshwe-preview-head { display: flex; align-items: center; gap: 6px; padding: 10px 12px 6px; flex: none; flex-wrap: wrap; }
   .dshwe-preview-name { font-size: 12.5px; font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dshwe-preview-meta { font-size: 11px; color: #8a8a8a; flex: none; }
-  .dshwe-preview-pre { flex: 1; overflow: auto; margin: 0; padding: 4px 14px 10px; font: 11.5px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #c8d0db; white-space: pre; }
-  .dshwe-preview-actions { display: flex; align-items: center; gap: 8px; padding: 0 14px 10px; }
+  .dshwe-preview-pre { flex: 1; overflow: auto; margin: 0; padding: 4px 12px 10px; font: 11.5px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #c8d0db; white-space: pre; }
+  .dshwe-preview-actions { display: flex; align-items: center; gap: 8px; padding: 0 12px 10px; flex: none; }
+  .dshwe-editor {
+    flex: 1; resize: none; border: 0; outline: none; padding: 4px 12px 10px;
+    background: transparent; color: #c8d0db;
+    font: 11.5px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    white-space: pre; overflow: auto; tab-size: 2;
+  }
+  .dshwe-editor:focus { outline: none; }
+  .dshwe-edit-saving { font-size: 11px; color: #8a8a8a; }
+  .dshwe-edit-saveerr { font-size: 11px; color: #e5484d; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dshwe-prevbtn { flex: none; height: 28px; border: 1px solid rgba(255,255,255,.16); background: transparent; color: #9a9a9a; border-radius: 8px; padding: 0 10px; font: inherit; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+  .dshwe-prevbtn:hover { color: #e8e8e8; background: rgba(255,255,255,.08); }
+  .dshwe-prevbtn:disabled { opacity: .45; cursor: not-allowed; }
 
   /* ---- 设置页 ---- */
   .dshwe-set { display: flex; flex-direction: column; gap: 2px; padding: 8px 16px 14px; overflow: auto; flex: 1; }
@@ -285,8 +319,8 @@
 
   <div class="demo-note">
     <b>dsh-workspace-explorer · Interactive Demo</b>
-    <span>模拟预览 — 与真实插件 UI 一致(会话头部入口 + 文件树面板 + 多选/拖拽/分页预览)</span>
-    <span>Mock preview of the DeepSeek Harness plugin — header entry, file tree panel, multi-select / drag / paginated preview.</span>
+    <span>模拟预览 — 与真实插件 UI 一致(会话头部入口 + 文件树面板 + 分屏预览/编辑 + 多选/拖拽/分页)</span>
+    <span>Mock preview of the DeepSeek Harness plugin — header entry, file tree, split-view preview / edit, multi-select / drag / paging.</span>
     <span class="pill">Mock · 非真实运行环境</span>
     <button type="button" class="demo-lang" id="langBtn">English</button>
     <a href="https://github.com/Jiyr0119/dsh-workspace-explorer" target="_blank" rel="noopener">GitHub ↗</a>
@@ -349,33 +383,56 @@
 
         <!-- 文件页 -->
         <div class="dshwe-tabbody" id="tabFiles">
-          <div class="dshwe-selrow">
-            <select class="dshwe-sel" id="wsSel"></select>
-            <button type="button" class="dshwe-icobtn" id="addBtn" title="添加工作区(演示)">+</button>
-          </div>
-          <div class="dshwe-filterrow">
-            <input class="dshwe-filter" id="filter" placeholder="搜索文件…" />
-            <button type="button" class="dshwe-filter-clear" id="filterClear" title="清除" hidden>×</button>
-          </div>
-          <div class="dshwe-hintline"><span>↩</span><span id="hintText">点击插入;Shift / ⌘ 点击多选;目录可拖拽</span></div>
-          <div class="dshwe-tree" id="tree"></div>
-          <div class="dshwe-selbar" id="selbar" hidden>
-            <span class="dshwe-selbar-count" id="selCount">已选 0 项</span>
-            <button type="button" class="dshwe-prevbtn dshwe-prevbtn-primary" id="selInsert">插入所选</button>
-            <button type="button" class="dshwe-prevbtn" id="selClear">清除</button>
-          </div>
-          <div class="dshwe-preview" id="preview" hidden>
-            <div class="dshwe-preview-head">
-              <span class="dshwe-preview-name" id="previewName"></span>
-              <span class="dshwe-preview-meta" id="previewMeta"></span>
+          <div class="dshwe-body">
+            <!-- 左侧:分屏预览 / 编辑面板(打开时 340px 撑开,文件树保持可见) -->
+            <div class="dshwe-preview-slot" id="previewSlot" hidden>
+              <div class="dshwe-preview-panel" id="preview">
+                <div class="dshwe-preview-head">
+                  <span class="dshwe-preview-name" id="previewName"></span>
+                  <span class="dshwe-preview-meta" id="previewMeta"></span>
+                  <span class="dshwe-edit-saving" id="previewSaving" hidden></span>
+                  <span class="dshwe-edit-saveerr" id="previewSaveErr" hidden></span>
+                  <span id="previewModeBtns">
+                    <button type="button" class="dshwe-pager-btn" id="prevPage" title="上一页">‹</button>
+                    <button type="button" class="dshwe-pager-btn" id="nextPage" title="下一页">›</button>
+                    <button type="button" class="dshwe-prevbtn" id="previewEdit">编辑</button>
+                    <button type="button" class="dshwe-icobtn" id="previewClose" title="关闭预览">
+                      <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
+                    </button>
+                  </span>
+                  <span id="editModeBtns" hidden>
+                    <button type="button" class="dshwe-prevbtn" id="editSave">保存</button>
+                    <button type="button" class="dshwe-prevbtn" id="editDiscard">放弃</button>
+                    <button type="button" class="dshwe-icobtn" id="editCancel" title="取消">
+                      <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
+                    </button>
+                  </span>
+                </div>
+                <pre class="dshwe-preview-pre" id="previewPre" hidden></pre>
+                <textarea class="dshwe-editor" id="previewEditor" hidden spellcheck="false"></textarea>
+                <div class="dshwe-preview-actions" id="previewActions">
+                  <button type="button" class="dshwe-prevbtn" id="previewRef">插入引用</button>
+                  <button type="button" class="dshwe-prevbtn" id="previewContent">插入内容</button>
+                </div>
+              </div>
             </div>
-            <pre class="dshwe-preview-pre" id="previewPre"></pre>
-            <div class="dshwe-preview-actions">
-              <button type="button" class="dshwe-pager-btn" id="prevPage" title="上一页">‹</button>
-              <button type="button" class="dshwe-pager-btn" id="nextPage" title="下一页">›</button>
-              <button type="button" class="dshwe-prevbtn" id="previewRef">插入引用</button>
-              <button type="button" class="dshwe-prevbtn dshwe-prevbtn-primary" id="previewContent">插入内容</button>
-              <button type="button" class="dshwe-prevbtn" id="previewClose">关闭</button>
+            <!-- 右侧:文件树(预览打开时仍可导航) -->
+            <div class="dshwe-tree-col">
+              <div class="dshwe-selrow">
+                <select class="dshwe-sel" id="wsSel"></select>
+                <button type="button" class="dshwe-icobtn" id="addBtn" title="添加工作区(演示)">+</button>
+              </div>
+              <div class="dshwe-filterrow">
+                <input class="dshwe-filter" id="filter" placeholder="搜索文件…" />
+                <button type="button" class="dshwe-filter-clear" id="filterClear" title="清除" hidden>×</button>
+              </div>
+              <div class="dshwe-hintline"><span>↩</span><span id="hintText">点击插入;Shift / ⌘ 点击多选;目录可拖拽</span></div>
+              <div class="dshwe-tree" id="tree"></div>
+              <div class="dshwe-selbar" id="selbar" hidden>
+                <span class="dshwe-selbar-count" id="selCount">已选 0 项</span>
+                <button type="button" class="dshwe-prevbtn dshwe-prevbtn-primary" id="selInsert">插入所选</button>
+                <button type="button" class="dshwe-prevbtn" id="selClear">清除</button>
+              </div>
             </div>
           </div>
         </div>
@@ -512,7 +569,7 @@
     selected: new Set(),
     selAnchor: null,
     filter: '',
-    preview: null, // { rel, name, page, total }
+    preview: null, // { rel, name, size, lines, page, mode: 'preview' | 'edit', editContent, dirty, saving, saveError }
     cfg: { hideNoise: true, showSize: true, refStyle: 'relative', peekLines: 60, width: 384 }
   }
 
@@ -531,14 +588,15 @@
   // ---------- 语言切换 ----------
   var STR = {
     zh: {
-      'panel.title': '工作区文件', hint: '点击插入;Shift / ⌘ 点击多选;目录可拖拽',
+      'panel.title': '工作区文件', hint: '👁 预览/编辑;点击插入;Shift / ⌘ 多选;目录可拖拽',
       dropHint: '松开以插入文件引用到输入框', dropHintDir: '松开以插入目录树',
       composerPh: '在此输入… 或点击/拖拽右侧文件',
       send: '发送', files: '文件', settings: '设置', logEmpty: '发送文件引用后,这里会出现 `[file: …]` 消息(模拟)。',
-      langBtn: 'English', rowTip: '点击或拖拽到输入框', insertTip: '插入引用', previewTip: '预览',
+      langBtn: 'English', rowTip: '点击或拖拽到输入框', insertTip: '插入引用', previewTip: '预览 / 编辑',
       refresh: '刷新', close: '关闭', searchPh: '搜索文件…', clear: '清除',
       selCount: '已选 {n} 项', selInsert: '插入所选', previewPage: '第 {n} 页', previewLines: '{n} 行',
       prev: '上一页', next: '下一页', insertRef: '插入引用', insertContent: '插入内容',
+      edit: '编辑', editSave: '保存', editDiscard: '放弃', editCancel: '取消', editDirty: '已修改', editSaved: '已保存', editSaving: '保存中…', editDiscardConfirm: '放弃修改?',
       hit: '匹配 {n} 项', hitNone: '没有匹配「{q}」的文件',
       toggleLabel: '工作区文件', toggleTitle: '文件目录', wsCrumb: 'workspace', wsCur: 'my-app',
       general: '通用', setNoise: '隐藏噪声目录', setNoiseDesc: '.git · node_modules · dist 等',
@@ -547,14 +605,15 @@
       reset: '恢复默认', setNote: '配置在本次会话内生效,重启插件后恢复默认。'
     },
     en: {
-      'panel.title': 'Workspace Files', hint: 'Click to insert; Shift / ⌘ click to multi-select; drag folders',
+      'panel.title': 'Workspace Files', hint: '👁 preview / edit; click to insert; Shift / ⌘ multi-select; drag folders',
       dropHint: 'Release to insert the file reference into the composer', dropHintDir: 'Release to insert the folder tree',
       composerPh: 'Type here… or click / drag files on the right',
       send: 'Send', files: 'Files', settings: 'Settings', logEmpty: 'File references sent here appear as `[file: …]` messages (mock).',
-      langBtn: '中文', rowTip: 'click or drag to the composer', insertTip: 'Insert reference', previewTip: 'Preview',
+      langBtn: '中文', rowTip: 'click or drag to the composer', insertTip: 'Insert reference', previewTip: 'Preview / Edit',
       refresh: 'Refresh', close: 'Close', searchPh: 'Search files…', clear: 'Clear',
       selCount: '{n} selected', selInsert: 'Insert', previewPage: 'Page {n}', previewLines: '{n} lines',
       prev: 'Previous page', next: 'Next page', insertRef: 'Insert reference', insertContent: 'Insert content',
+      edit: 'Edit', editSave: 'Save', editDiscard: 'Discard', editCancel: 'Cancel', editDirty: 'Modified', editSaved: 'Saved', editSaving: 'Saving…', editDiscardConfirm: 'Discard changes?',
       hit: '{n} match(es)', hitNone: 'No files match "{q}"',
       toggleLabel: 'Workspace Files', toggleTitle: 'Files', wsCrumb: 'workspace', wsCur: 'my-app',
       general: 'General', setNoise: 'Hide noise dirs', setNoiseDesc: '.git · node_modules · dist …',
@@ -594,7 +653,11 @@
     $('selClear').textContent = tr('clear')
     $('previewRef').textContent = tr('insertRef')
     $('previewContent').textContent = tr('insertContent')
-    $('previewClose').textContent = tr('close')
+    $('previewEdit').textContent = tr('edit')
+    $('editSave').textContent = tr('editSave')
+    $('editDiscard').textContent = tr('editDiscard')
+    $('editCancel').title = tr('editCancel')
+    $('previewClose').title = tr('close')
     var le = document.getElementById('logEmpty'); if (le) le.textContent = tr('logEmpty')
     var dh = document.getElementById('dropHintText'); if (dh) dh.textContent = tr('dropHint')
     var opts = $('setRefSel').options
@@ -611,6 +674,7 @@
     popup.hidden = !state.open
     popup.classList.toggle('dshwe-popup-on', state.open)
     document.getElementById('stage').classList.toggle('panel-open', state.open)
+    popup.style.width = (state.preview ? state.cfg.width + 340 : state.cfg.width) + 'px'
     $('toggleBtn').classList.toggle('dshwe-hicon-on', state.open)
     $('tabFiles').hidden = state.tab !== 'files'
     $('tabSettings').hidden = state.tab !== 'settings'
@@ -628,7 +692,8 @@
   wsSel.addEventListener('change', function () { switchWs(wsSel.value) })
   function switchWs(ws) {
     state.ws = ws; state.expanded = {}; state.selected = new Set(); state.selAnchor = null
-    state.filter = ''; $('filter').value = ''; $('filterClear').hidden = true
+    state.filter = ''; state.preview = null
+    $('filter').value = ''; $('filterClear').hidden = true
     $('crumbCur').textContent = WORKSPACES[ws].label
     renderPanel(); renderTree()
   }
@@ -710,9 +775,10 @@
   function rowFor(entry) {
     var isDir = entry.type === 'directory'
     var isSel = state.selected.has(entry.rel)
+    var isPrev = !!state.preview && state.preview.rel === entry.rel
     var row = document.createElement('button')
     row.type = 'button'
-    row.className = 'dshwe-row' + (isDir ? ' dshwe-row-dir' : ' dshwe-row-file') + (isSel ? ' dshwe-row-sel' : '')
+    row.className = 'dshwe-row' + (isDir ? ' dshwe-row-dir' : ' dshwe-row-file') + (isSel ? ' dshwe-row-sel' : '') + (isPrev ? ' dshwe-row-active' : '')
     row.style.paddingLeft = (10 + entry.depth * 16) + 'px'
     row.title = entry.rel + (isDir ? '' : ' · ' + tr('rowTip'))
     row.draggable = true
@@ -723,6 +789,14 @@
       var ch = chevronSvg(open); ch.classList.toggle('dshwe-chev-on', open); slot.appendChild(ch)
     }
     row.appendChild(slot)
+    if (!isDir) {
+      // 👁 预览 / 编辑按钮(常显,与真实插件一致;点击不触发行插入)
+      var pbtn = document.createElement('span'); pbtn.className = 'dshwe-preview-btn' + (isPrev ? ' dshwe-preview-btn-on' : ''); pbtn.title = tr('previewTip')
+      pbtn.appendChild(svg([{ d: 'M1.5 8s2.6-4.5 6.5-4.5S14.5 8 14.5 8 11.9 12.5 8 12.5 1.5 8 1.5 8zM8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4z', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.3, 'stroke-linejoin': 'round' }], 15))
+      pbtn.addEventListener('mousedown', function (e) { e.preventDefault(); e.stopPropagation(); openPreview(entry) })
+      pbtn.addEventListener('click', function (e) { e.stopPropagation() })
+      row.appendChild(pbtn)
+    }
     var meta = FILE_META[extOf(entry.name)] || DEFAULT_META
     row.appendChild(isDir ? folderSvg(!!state.expanded[entry.rel]) : fileSvg(meta[0], GLYPHS[meta[1]] || ''))
     var nm = document.createElement('span'); nm.className = 'dshwe-name'; nm.textContent = entry.name; row.appendChild(nm)
@@ -730,18 +804,8 @@
     if (!isDir && state.cfg.showSize) {
       var sz = document.createElement('span'); sz.className = 'dshwe-size'; sz.textContent = fmtSize(entry.size); row.appendChild(sz)
     }
-    if (!isDir) {
-      var eye = document.createElement('span'); eye.className = 'dshwe-eye'; eye.title = tr('previewTip')
-      eye.appendChild(svg([{ d: 'M1.5 8s2.6-4.5 6.5-4.5S14.5 8 14.5 8 11.9 12.5 8 12.5 1.5 8 1.5 8zM8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4z', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.3, 'stroke-linejoin': 'round' }], 13))
-      eye.addEventListener('mousedown', function (e) { e.preventDefault(); e.stopPropagation(); openPreview(entry) })
-      eye.addEventListener('click', function (e) { e.stopPropagation() })
-      row.appendChild(eye)
-
-      var ins = document.createElement('span'); ins.className = 'dshwe-insert'; ins.title = tr('insertTip')
-      ins.appendChild(svg([{ d: 'M8 2.5v7.5M5.7 7.5L8 9.8l2.3-2.3M3.5 12.5h9', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.4, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }], 13))
-      ins.addEventListener('mousedown', function (e) { e.preventDefault(); e.stopPropagation(); insertMarker(entry) })
-      ins.addEventListener('click', function (e) { e.stopPropagation() })
-      row.appendChild(ins)
+    if (!isDir && isPrev) {
+      var dot = document.createElement('span'); dot.className = 'dshwe-row-preview-dot'; row.appendChild(dot)
     }
 
     row.addEventListener('click', function (e) { onRowClick(e, entry) })
@@ -760,6 +824,8 @@
     composer.setSelectionRange(composer.value.length, composer.value.length)
   }
   function onRowClick(e, entry) {
+    // 忽略来自 👁 预览按钮的点击(其 mousedown 已打开预览,click 目标可能因布局位移落在行上)
+    if (e.target && e.target.closest && e.target.closest('.dshwe-preview-btn')) return
     var isDir = entry.type === 'directory'
     if (e.shiftKey || e.metaKey || e.ctrlKey) {
       e.preventDefault()
@@ -875,27 +941,107 @@
   }, true)
   document.addEventListener('dragend', function () { dropHint.hidden = true })
 
-  // ---------- 分页预览(行翻页,页大小跟随设置) ----------
+  // ---------- 分屏预览 / 编辑(左侧 340px 面板,右侧文件树保持可见;与真实插件一致) ----------
+  function fileEntry(rel) {
+    var found = null
+    flatVisible().forEach(function (x) { if (x.rel === rel) found = x })
+    return found
+  }
   function openPreview(entry) {
-    state.preview = { rel: entry.rel, name: entry.name, page: 0, total: entry.lines || 60 }
+    state.preview = { rel: entry.rel, name: entry.name, size: entry.size, lines: entry.lines || 60, page: 0, mode: 'preview', editContent: '', dirty: false, saving: false, saveError: null }
     renderPreview()
   }
+  function enterEdit() {
+    var p = state.preview
+    if (!p) return
+    var total = p.lines || 60
+    var cap = Math.min(total, 120)
+    var lines = []
+    for (var i = 0; i < cap; i++) lines.push(previewLine(p.name, p.rel, i))
+    p.editContent = lines.join('\n')
+    p.mode = 'edit'; p.dirty = false; p.saving = false; p.saveError = null
+    renderPreview()
+  }
+  function updateEditContent() {
+    var p = state.preview
+    if (!p) return
+    p.editContent = $('previewEditor').value
+    p.dirty = true
+    renderPreview()
+  }
+  function saveFile() {
+    var p = state.preview
+    if (!p || p.mode !== 'edit' || !p.dirty || p.saving) return
+    p.saving = true; p.saveError = null
+    renderPreview()
+    // 模拟写盘:短暂展示保存中,成功后回到预览模式并更新行数
+    setTimeout(function () {
+      if (!state.preview || state.preview !== p) return
+      p.saving = false; p.dirty = false
+      p.lines = Math.max(1, p.editContent.split('\n').length)
+      p.page = 0
+      p.mode = 'preview'
+      var e = fileEntry(p.rel)
+      if (e) e.lines = p.lines
+      renderPreview()
+    }, 650)
+  }
+  function discardEdit() {
+    var p = state.preview
+    if (!p) return
+    if (p.dirty && !window.confirm(tr('editDiscardConfirm', {}))) return
+    p.mode = 'preview'; p.dirty = false; p.saving = false; p.saveError = null
+    renderPreview()
+  }
+  function cancelEdit() {
+    var p = state.preview
+    if (!p) return
+    p.mode = 'preview'; p.dirty = false; p.saving = false; p.saveError = null
+    renderPreview()
+  }
+  function closePreview() { state.preview = null; renderPreview() }
   function renderPreview() {
     var p = state.preview
-    if (!p) { $('preview').hidden = true; return }
-    $('preview').hidden = false
+    var slot = $('previewSlot')
+    slot.hidden = !p
+    document.getElementById('stage').classList.toggle('preview-open', !!p)
+    popup.style.width = p ? (state.cfg.width + 340) + 'px' : state.cfg.width + 'px'
+    if (!p) return
     $('previewName').textContent = p.name
+    var isEdit = p.mode === 'edit'
     var per = state.cfg.peekLines
-    var pages = Math.max(1, Math.ceil(p.total / per))
-    $('previewMeta').textContent = tr('previewPage', { n: p.page + 1 }) + ' / ' + pages + ' · ' + tr('previewLines', { n: p.total })
-    var start = p.page * per
-    var lines = []
-    for (var i = start; i < Math.min(start + per, p.total); i++) {
-      lines.push(String(i + 1).padStart(4, ' ') + '  ' + previewLine(p.name, p.rel, i))
+    var pages = Math.max(1, Math.ceil(p.lines / per))
+    var metaBits = []
+    if (p.size != null) metaBits.push(fmtSize(p.size))
+    metaBits.push(tr('previewLines', { n: p.lines }))
+    if (!isEdit && p.page > 0) metaBits.push(tr('previewPage', { n: p.page + 1 }))
+    if (isEdit && p.dirty) metaBits.push(tr('editDirty'))
+    $('previewMeta').textContent = metaBits.join(' · ')
+    $('previewSaving').textContent = tr('editSaving', {})
+    $('previewSaving').hidden = !(isEdit && p.saving)
+    $('previewSaveErr').textContent = p.saveError || ''
+    $('previewSaveErr').hidden = !p.saveError
+    $('previewModeBtns').hidden = isEdit
+    $('editModeBtns').hidden = !isEdit
+    $('editSave').disabled = p.saving || !p.dirty
+    $('previewActions').hidden = isEdit
+    if (isEdit) {
+      $('previewPre').hidden = true
+      $('previewEditor').hidden = false
+      if (document.activeElement !== $('previewEditor')) $('previewEditor').value = p.editContent
+    } else {
+      $('previewEditor').hidden = true
+      $('previewPre').hidden = false
+      var start = p.page * per
+      var lines = []
+      for (var i = start; i < Math.min(start + per, p.lines); i++) {
+        lines.push(String(i + 1).padStart(4, ' ') + '  ' + previewLine(p.name, p.rel, i))
+      }
+      $('previewPre').textContent = lines.join('\n')
+      $('prevPage').disabled = p.page === 0
+      $('nextPage').disabled = p.page >= pages - 1
     }
-    $('previewPre').textContent = lines.join('\n')
-    $('prevPage').disabled = p.page === 0
-    $('nextPage').disabled = p.page >= pages - 1
+    renderTree() // 重渲染树:激活行高亮 + 蓝点跟随当前预览文件
   }
   function previewLine(name, rel, i) {
     var ext = extOf(name)
@@ -909,13 +1055,18 @@
   $('prevPage').addEventListener('click', function () { if (state.preview && state.preview.page > 0) { state.preview.page--; renderPreview() } })
   $('nextPage').addEventListener('click', function () {
     if (state.preview) {
-      var pages = Math.max(1, Math.ceil(state.preview.total / state.cfg.peekLines))
+      var pages = Math.max(1, Math.ceil(state.preview.lines / state.cfg.peekLines))
       if (state.preview.page < pages - 1) { state.preview.page++; renderPreview() }
     }
   })
   $('previewRef').addEventListener('click', function () { if (state.preview) insertMarker({ rel: state.preview.rel }) })
   $('previewContent').addEventListener('click', function () { if (state.preview) appendToComposer('(内容已插入:' + state.preview.name + ' · 演示)') })
-  $('previewClose').addEventListener('click', function () { state.preview = null; renderPreview() })
+  $('previewEdit').addEventListener('click', enterEdit)
+  $('editSave').addEventListener('click', saveFile)
+  $('editDiscard').addEventListener('click', discardEdit)
+  $('editCancel').addEventListener('click', cancelEdit)
+  $('previewClose').addEventListener('click', closePreview)
+  $('previewEditor').addEventListener('input', updateEditContent)
 
   // ---------- 搜索过滤 ----------
   $('filter').addEventListener('input', function () {
@@ -954,7 +1105,7 @@
     $('setRefSel').value = 'relative'; $('setPeekSel').value = '60'; $('setWidthSel').value = '384'
     Array.prototype.forEach.call(document.querySelectorAll('.dshwe-switch'), function (b) { b.setAttribute('aria-checked', 'true') })
     popup.style.width = ''
-    state.expanded = {}; state.selected = new Set()
+    state.expanded = {}; state.selected = new Set(); state.preview = null
     renderTree()
   })
 

@@ -16,7 +16,7 @@ Inspired by the VS Code / Cursor project tree, filling the gap of a missing dire
 
 ![dsh-workspace-explorer demo](demo/preview.gif)
 
-*Demo GIF (v0.6.0): the **“Workspace Files” pill entry**, split view preview panel, file editing, multi-select batch insert, folder drag → compact tree text, paginated preview, and the settings tab.*
+*Demo GIF (recorded at v0.5.1): the **“Workspace Files” pill entry**, multi-select batch insert, folder drag → compact tree text, paginated preview, and the settings tab. The v0.6.0 split-view preview and file editing are shown in the screenshots below.*
 
 <details>
 <summary><b>Screenshots</b> · 截图</summary>
@@ -24,6 +24,10 @@ Inspired by the VS Code / Cursor project tree, filling the gap of a missing dire
 ![Panel](assets/screenshots/panel.png)
 
 ![File tree](assets/screenshots/tree.png)
+
+![Split-view preview](assets/screenshots/preview.png)
+
+![Edit mode](assets/screenshots/edit.png)
 
 ![Insert & send](assets/screenshots/insert.png)
 
@@ -127,7 +131,7 @@ dsh-workspace-explorer/
 
 ## Version
 
-Current version **v0.5.1** — the session-header entry is now a **“Workspace Files” capsule (feature name + folder icon)**, matching the native Session log button style; the demo GIF was re-recorded to show the entry plus the M1 read-path features (split view preview panel, file editing, multi-select batch insert, folder drag & tree text, paginated preview, settings tab).
+Current version **v0.6.0** — the **M2 write path**: a 340px **split-view preview panel** (click the 👁 button before any file; the file tree stays visible on the right) and **in-panel file editing** (textarea mode with Save / Discard / Cancel, a “Modified” badge, and external-change detection on save).
 See [CHANGELOG.md](./CHANGELOG.md) for release notes.
 
 ## Roadmap
