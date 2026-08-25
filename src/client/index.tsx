@@ -55,6 +55,8 @@ const DICTS: Record<string, Record<string, string>> = {
     'settings.width': '面板宽度', 'settings.width.narrow': '紧凑', 'settings.width.std': '标准', 'settings.width.wide': '宽松',
     'settings.restore': '恢复默认', 'settings.note': '配置在本次会话内生效,重启插件后恢复默认。',
     'settings.nav': '工作区文件',
+    'star.ask': '⭐ 顺手留颗 Star，作者能高兴一整天',
+    'star.cta': '★ 给一颗 Star',
     'drawer.tip': '文件目录', 'drawer.open': '打开文件抽屉', 'drawer.label': '工作区文件',
   },
   en: {
@@ -85,6 +87,8 @@ const DICTS: Record<string, Record<string, string>> = {
     'settings.width': 'Panel width', 'settings.width.narrow': 'Narrow', 'settings.width.std': 'Standard', 'settings.width.wide': 'Wide',
     'settings.restore': 'Reset to defaults', 'settings.note': 'Settings apply for this run; they reset when the plugin restarts.',
     'settings.nav': 'Workspace Explorer',
+    'star.ask': '⭐ Drop a Star if it helped — it makes the author\'s day',
+    'star.cta': '★ Give a Star',
     'drawer.tip': 'Files', 'drawer.open': 'Open files drawer', 'drawer.label': 'Workspace Files',
   },
 }
@@ -370,6 +374,18 @@ function SettingsView() {
   ]
   return (
     <div className={C('dshwe-set')}>
+      <div className={C('dshwe-star-section')}>
+        <div className={C('dshwe-star-row')}>
+          <div className={C('dshwe-star-info')}>
+            <div className={C('dshwe-star-label')}>{tr('star.ask')}</div>
+          </div>
+          <a className={C('dshwe-star-link')}
+            href="https://github.com/Jiyr0119/dsh-workspace-explorer"
+            target="_blank" rel="noreferrer">
+            {tr('star.cta')}
+          </a>
+        </div>
+      </div>
       <div className={C('dshwe-setsec')}>{tr('settings.general')}</div>
       <SwitchRow label={tr('settings.hideNoise')} caption={tr('settings.hideNoise.desc')} checked={c.hideNoise} onChange={(v) => setCfg({ hideNoise: v })} />
       <SwitchRow label={tr('settings.showSize')} checked={c.showSize} onChange={(v) => setCfg({ showSize: v })} />

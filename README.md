@@ -6,7 +6,12 @@
 [![npm](https://img.shields.io/npm/v/@jiyr0119/dsh-workspace-explorer)](https://www.npmjs.com/package/@jiyr0119/dsh-workspace-explorer)
 [![npm downloads](https://img.shields.io/npm/dt/@jiyr0119/dsh-workspace-explorer)](https://www.npmjs.com/package/@jiyr0119/dsh-workspace-explorer)
 [![Awesome DSH Plugin](https://awesome-dsh-plugin.com/badge.svg)](https://awesome-dsh-plugin.com)
+[![GitHub stars](https://img.shields.io/github/stars/Jiyr0119/dsh-workspace-explorer)](https://github.com/Jiyr0119/dsh-workspace-explorer/stargazers)
 [![Last commit](https://img.shields.io/github/last-commit/Jiyr0119/dsh-workspace-explorer)](https://github.com/Jiyr0119/dsh-workspace-explorer)
+
+<p align="center">
+  ⭐ If you find this useful, give it a Star — it makes the author's day &nbsp;·&nbsp; <a href="https://github.com/Jiyr0119/dsh-workspace-explorer">★ Give a Star</a>
+</p>
 
 > A workspace file explorer for the DeepSeek Harness Web UI: a **“Workspace Files” capsule button in the session header** (feature name + folder icon, beside the Session log button) opens an animated popup showing the current workspace's directory tree — click or drag a file to send its reference to the model.
 

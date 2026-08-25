@@ -6,7 +6,12 @@
 [![npm](https://img.shields.io/npm/v/@jiyr0119/dsh-workspace-explorer)](https://www.npmjs.com/package/@jiyr0119/dsh-workspace-explorer)
 [![npm downloads](https://img.shields.io/npm/dt/@jiyr0119/dsh-workspace-explorer)](https://www.npmjs.com/package/@jiyr0119/dsh-workspace-explorer)
 [![Awesome DSH Plugin](https://awesome-dsh-plugin.com/badge.svg)](https://awesome-dsh-plugin.com)
+[![GitHub stars](https://img.shields.io/github/stars/Jiyr0119/dsh-workspace-explorer)](https://github.com/Jiyr0119/dsh-workspace-explorer/stargazers)
 [![Last commit](https://img.shields.io/github/last-commit/Jiyr0119/dsh-workspace-explorer)](https://github.com/Jiyr0119/dsh-workspace-explorer)
+
+<p align="center">
+  ⭐ 顺手留颗 Star,作者能高兴一整天 &nbsp;·&nbsp; <a href="https://github.com/Jiyr0119/dsh-workspace-explorer">行,给你一颗 Star</a>
+</p>
 
 > 给 DeepSeek Harness Web UI 的工作区文件资源管理器:会话头部一个**「工作区文件」胶囊按钮**(功能名称 + 文件夹图标,与 Session log 按钮同排)打开动画弹窗,展示当前工作区目录树;点击或拖拽文件即可把文件引用发给大模型。
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.6.2] - 2026-08-21
+
+### 新功能 Feature
+
+- **Star 好评提示** — README 和插件设置页新增 GitHub Star 好评入口;徽章栏新增 Star 数量徽章;设置页顶部展示开发者信息与 Star 链接 / **Star prompt** — README and plugin settings page now show a GitHub Star call-to-action; badges include a Star count badge; settings page header displays developer info and Star link.
+
 ## [v0.6.1] - 2026-08-21
 
 ### 修复 Fix
