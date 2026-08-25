@@ -55,6 +55,9 @@ const DICTS: Record<string, Record<string, string>> = {
     'settings.width': '面板宽度', 'settings.width.narrow': '紧凑', 'settings.width.std': '标准', 'settings.width.wide': '宽松',
     'settings.restore': '恢复默认', 'settings.note': '配置在本次会话内生效,重启插件后恢复默认。',
     'settings.nav': '工作区文件',
+    'settings.developer': '开发者：Jiyr0119',
+    'settings.starAsk': '⭐ 顺手留颗 Star，作者能高兴一整天',
+    'settings.starCta': '行，给你一颗 Star',
     'drawer.tip': '文件目录', 'drawer.open': '打开文件抽屉', 'drawer.label': '工作区文件',
   },
   en: {
@@ -85,6 +88,9 @@ const DICTS: Record<string, Record<string, string>> = {
     'settings.width': 'Panel width', 'settings.width.narrow': 'Narrow', 'settings.width.std': 'Standard', 'settings.width.wide': 'Wide',
     'settings.restore': 'Reset to defaults', 'settings.note': 'Settings apply for this run; they reset when the plugin restarts.',
     'settings.nav': 'Workspace Explorer',
+    'settings.developer': 'Developer: Jiyr0119',
+    'settings.starAsk': '⭐ Drop a Star if it helped — it makes the author\'s day',
+    'settings.starCta': '★ Give a Star',
     'drawer.tip': 'Files', 'drawer.open': 'Open files drawer', 'drawer.label': 'Workspace Files',
   },
 }
@@ -370,6 +376,16 @@ function SettingsView() {
   ]
   return (
     <div className={C('dshwe-set')}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '0 0 12px' }}>
+        <div>
+          <div style={{ fontSize: 12, color: 'var(--dsw-alias-label-tertiary,#8b93a1)', lineHeight: 1.6 }}>{tr('settings.developer')}</div>
+          <div style={{ fontSize: 12, color: 'var(--dsw-alias-label-tertiary,#8b93a1)', lineHeight: 1.6 }}>{tr('settings.starAsk')}</div>
+        </div>
+        <a href="https://github.com/Jiyr0119/dsh-workspace-explorer" target="_blank" rel="noreferrer"
+          style={{ color: 'var(--dsw-alias-brand-primary,#4f6ef7)', fontSize: 12, lineHeight: 1.6, textDecoration: 'underline', whiteSpace: 'nowrap' }}>
+          {tr('settings.starCta')}
+        </a>
+      </div>
       <div className={C('dshwe-setsec')}>{tr('settings.general')}</div>
       <SwitchRow label={tr('settings.hideNoise')} caption={tr('settings.hideNoise.desc')} checked={c.hideNoise} onChange={(v) => setCfg({ hideNoise: v })} />
       <SwitchRow label={tr('settings.showSize')} checked={c.showSize} onChange={(v) => setCfg({ showSize: v })} />
