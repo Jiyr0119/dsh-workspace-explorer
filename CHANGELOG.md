@@ -1,10 +1,16 @@
 # Changelog
 
-## [v0.6.2] - 2026-08-21
+## [v0.6.3] - 2026-08-25
+
+### 改进 Improvement
+
+- **Star 提示精简** — 设置页 Star 好评区域去掉开发者名称,改用 CSS Module 类名替代内联样式,更简洁优雅 / **Streamlined Star prompt** — removed developer name from settings star section, switched from inline styles to CSS Module classes for a cleaner look.
+
+## [v0.6.2] - 2026-08-25
 
 ### 新功能 Feature
 
-- **Star 好评提示** — README 和插件设置页新增 GitHub Star 好评入口;徽章栏新增 Star 数量徽章;设置页顶部展示开发者信息与 Star 链接 / **Star prompt** — README and plugin settings page now show a GitHub Star call-to-action; badges include a Star count badge; settings page header displays developer info and Star link.
+- **Star 好评提示** — README 和插件设置页新增 GitHub Star 好评入口;徽章栏新增 Star 数量徽章;设置页顶部展示 Star 链接 / **Star prompt** — README and plugin settings page now show a GitHub Star call-to-action; badges include a Star count badge; settings page header displays Star link.
 
 ## [v0.6.1] - 2026-08-21
 
