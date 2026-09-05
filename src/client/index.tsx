@@ -275,7 +275,8 @@ async function fetchAllFiles(root: string): Promise<FlatFile[]> {
   if (fileCachePromise) return fileCachePromise
   fileCachePromise = (async () => {
     try {
-      const res = await api<TreeResult>('tree', { root, rel: '', depth: 6, maxEntries: 2000 })
+      // 增加深度和条目数限制，以支持更深层级的目录搜索
+      const res = await api<TreeResult>('tree', { root, rel: '', depth: 10, maxEntries: 5000 })
       if (!res.ok || !res.entries) return []
       const files: FlatFile[] = res.entries.map((e) => ({
         rel: e.rel, name: e.name, type: e.type,
@@ -610,6 +611,27 @@ function Panel(props: {
   }
 
   const q = filter.trim().toLowerCase()
+  // 搜索时使用 fetchAllFiles 获取所有文件（包括未展开的目录）
+  const [searchFiles, setSearchFiles] = useState<FlatFile[]>([])
+  const [searchLoading, setSearchLoading] = useState(false)
+
+  // 当搜索框有内容时，异步加载所有文件用于搜索
+  useEffect(() => {
+    if (q === '' || !root) {
+      setSearchFiles([])
+      return
+    }
+    let cancelled = false
+    setSearchLoading(true)
+    fetchAllFiles(root).then((files) => {
+      if (!cancelled) {
+        setSearchFiles(files)
+        setSearchLoading(false)
+      }
+    })
+    return () => { cancelled = true }
+  }, [q, root])
+
   const collectMatches = (rel: string, out: WsEntry[]): void => {
     const data = dirs[rel]
     if (!data) return
@@ -618,11 +640,27 @@ function Panel(props: {
       if (entry.type === 'directory') collectMatches(entry.rel, out)
     }
   }
+
+  // 搜索所有文件（包括未展开的目录）
+  const collectAllMatches = (out: WsEntry[]): void => {
+    for (const f of searchFiles) {
+      if (f.name.toLowerCase().includes(q) || f.rel.toLowerCase().includes(q)) {
+        out.push({
+          name: f.name,
+          type: f.type as 'directory' | 'file',
+          path: f.path,
+          rel: f.rel,
+          size: null,
+        })
+      }
+    }
+  }
+
   // 当前可见条目(平铺):搜索模式取匹配,否则按展开树顺序
   const flatVisible = (): WsEntry[] => {
     if (q !== '') {
       const hits: WsEntry[] = []
-      collectMatches('', hits)
+      collectAllMatches(hits)
       return hits
     }
     const out: WsEntry[] = []

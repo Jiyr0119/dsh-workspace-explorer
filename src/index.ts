@@ -59,8 +59,8 @@ export const cfg = {
 const WHOLE_MAX_BYTES = 32 * 1024          // 「插入完整内容」上限
 const SMALL_FILE_MAX = 4 * 1024 * 1024     // 整读阈值:小于它直接 split 行,行数精确
 const PAGE_SCAN_CHUNK = 256 * 1024         // 大文件分页扫描的块大小
-const TREE_MAX_DEPTH = 6                   // 目录树最大递归深度
-const TREE_MAX_ENTRIES = 200               // 目录树默认条目预算
+const TREE_MAX_DEPTH = 10                  // 目录树最大递归深度(支持深层级搜索)
+const TREE_MAX_ENTRIES = 5000              // 目录树默认条目预算(支持大量文件搜索)
 const MAX_CACHED_LINES = 2_000_000         // 行偏移缓存上限(超过则退化为无缓存扫描)
 const LINE_CACHE_MAX_FILES = 64            // 行偏移缓存最多保留的文件数
 
@@ -286,7 +286,7 @@ export default {
           if ('error' in resolved) return writeJson(res, { ok: false, error: resolved.error })
           const path = resolved.abs
           const depth = Math.min(TREE_MAX_DEPTH, Math.max(1, Math.floor(Number(body.depth) || 3)))
-          const maxEntries = Math.min(1000, Math.max(1, Math.floor(Number(body.maxEntries) || TREE_MAX_ENTRIES)))
+          const maxEntries = Math.min(TREE_MAX_ENTRIES, Math.max(1, Math.floor(Number(body.maxEntries) || 200)))
           try {
             const name = basename(path.replace(/\/+$/, '')) || basename(path)
             const entries: Array<{ name: string; type: 'directory' | 'file'; rel: string }> = []
