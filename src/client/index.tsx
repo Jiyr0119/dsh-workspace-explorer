@@ -774,7 +774,7 @@ function Panel(props: {
   let body: React.ReactNode
   if (q !== '') {
     const hits: WsEntry[] = []
-    collectMatches('', hits)
+    collectAllMatches(hits)
     body = (
       <>
         <div className={C('dshwe-note')}>{tr('hit', { n: hits.length })}</div>
