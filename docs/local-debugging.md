@@ -136,6 +136,13 @@ ls -la ~/.dsh/profiles/dev/node_modules/@jiyr0119/dsh-workspace-explorer
 
 确保已执行 `npm run build`。symlink 只是链接目录，不会自动构建。
 
+如果插件是用 `dsh plugin add -w "file:<路径>"` 装的（web profile 就是这样），pnpm 会**复制**而不是链接，重新 `pnpm install` 也不会重拷（版本没变就是 "Already up to date"）。要让新构建生效：
+
+```bash
+rm -rf ~/.dsh/profiles/web/node_modules/@jiyr0119/dsh-workspace-explorer
+cd ~/.dsh/profiles/web && pnpm install
+```
+
 ### Q: 3090 端口被占用？
 
 ```bash

@@ -7,8 +7,47 @@ return {
   apply(ctx) {
     const slots = ctx.get('slots')
     if (slots === undefined) return
-    const workspacesSvc = ctx.get('workspaces')
     const locale = ctx.get('locale')
+
+    // DSH 0.2.0 适配:pickDirectory 迁到 uiWorkspace,当前会话 id 迁到 uiSession.adapter.current。
+    // 这些服务不在本插件 inject 列表里,apply() 时可能尚未创建,故统一延迟到调用时解析。
+    const svc = (name) => {
+      try {
+        const s = ctx.get(name)
+        return s === undefined ? null : s
+      } catch (err) {
+        return null
+      }
+    }
+    ;['workspaces', 'uiWorkspace'].forEach((name) => {
+      try {
+        ctx.inject([name], () => {
+          console.info('[dsh-workspace-explorer] service', name, 'ready, ctx.get =', svc(name) !== null)
+          return () => {}
+        })
+      } catch (err) {
+        console.info('[dsh-workspace-explorer] service', name, 'inject failed', String(err))
+      }
+    })
+    const readCurrentSessionId = () => {
+      const uiSession = svc('uiSession')
+      const cur = uiSession && uiSession.adapter && uiSession.adapter.current
+      if (!cur || typeof cur.getSnapshot !== 'function') return undefined
+      const snap = cur.getSnapshot()
+      return snap ? snap.key : undefined
+    }
+    const pickDirectory = async () => {
+      try {
+        const ui = svc('uiWorkspace')
+        if (ui) return await ui.pickDirectory()
+        const ws = svc('workspaces')
+        if (ws && typeof ws.pickDirectory === 'function') return await ws.pickDirectory()
+        console.warn('[dsh-workspace-explorer] no directory picker service available')
+      } catch (err) {
+        console.warn('[dsh-workspace-explorer] pickDirectory failed', String(err))
+      }
+      return null
+    }
 
     const MARKER = 'application/x-dsh-ws-file'
     const el = React.createElement
@@ -638,7 +677,9 @@ return {
       const wsState = props.useWorkspaces((s) => s)
       const sessions = props.useSessions((s) => s)
       const workspaces = wsState.items || []
-      const currentSummary = sessions.current ? sessions.byId[sessions.current] : undefined
+      // DSH 0.2.0 的 sessions 快照已无 current:改由 uiSession.adapter 派生当前会话
+      const currentId = readCurrentSessionId ? readCurrentSessionId() : undefined
+      const currentSummary = currentId && sessions.byId ? sessions.byId[currentId] : undefined
       const cwd = currentSummary ? currentSummary.cwd : undefined
 
       const [root, setRoot] = React.useState(null)
@@ -743,11 +784,19 @@ return {
       }
 
       const addWorkspace = async () => {
-        if (!workspacesSvc) return
-        const p = await workspacesSvc.pickDirectory()
-        if (p) {
-          const v = await workspacesSvc.create({ path: p })
-          setRoot(v.path)
+        const ws = svc('workspaces')
+        if (!ws) {
+          console.warn('[dsh-workspace-explorer] workspaces service unavailable')
+          return
+        }
+        try {
+          const p = await pickDirectory()
+          if (p) {
+            const v = await ws.create({ path: p })
+            setRoot(v.path)
+          }
+        } catch (err) {
+          console.warn('addWorkspace failed', String(err))
         }
       }
 

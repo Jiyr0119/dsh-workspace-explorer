@@ -98,12 +98,56 @@ interface LocaleLike {
   bind(ns: string): (key: string) => string
 }
 
-/** workspaces 服务(与动态版一致:pickDirectory 弹出目录选择,create 注册新工作区)。 */
+/** workspaces 服务:create 注册新工作区。目录选择在 DSH 0.2.0 起迁移到 uiWorkspace。 */
 interface WorkspacesSvcLike {
-  pickDirectory(): Promise<string | null>
+  pickDirectory?: () => Promise<string | null>
   create(p: { path: string }): Promise<{ path: string }>
 }
-let workspacesSvc: WorkspacesSvcLike | null = null
+/** uiWorkspace 服务(DSH 0.2.0+):pickDirectory 打开宿主目录选择器,取消返回 null。 */
+interface UiWorkspaceSvcLike {
+  pickDirectory(): Promise<string | null>
+}
+/** 插件根 Context:服务在 apply() 时可能尚未创建,故延迟解析。 */
+const root: { ctx: CtxLike | null } = { ctx: null }
+/** 按名取服务(0.1.5/0.2.0 通用),缺失或未就绪返回 null。 */
+const svc = <T,>(name: string): T | null => {
+  const ctx = root.ctx
+  if (ctx === null) return null
+  try {
+    return (ctx.get(name) as T | undefined) ?? null
+  } catch {
+    return null
+  }
+}
+
+/** 目录选择:0.2.0 走 uiWorkspace,0.1.5 走 workspaces.pickDirectory,均不可用时返回 null。 */
+const pickDirectory = async (): Promise<string | null> => {
+  try {
+    const ui = svc<UiWorkspaceSvcLike>('uiWorkspace')
+    if (ui !== null) return await ui.pickDirectory()
+    const ws = svc<WorkspacesSvcLike>('workspaces')
+    if (ws !== null && typeof ws.pickDirectory === 'function') return await ws.pickDirectory()
+    console.warn('[dsh-workspace-explorer] no directory picker service available')
+  } catch (err) {
+    console.warn('[dsh-workspace-explorer] pickDirectory failed', String((err as Error)?.message ?? err))
+  }
+  return null
+}
+
+/** HostObservable(DSH 0.2.0):getSnapshot/subscribe 对,与 renderer 标准源一致。 */
+interface HostObservableLike<T> {
+  getSnapshot(): T
+  subscribe(fn: () => void): () => void
+}
+/** sessions.list 句柄(0.2.0 快照 = ids/byId/phase/projectionsBySession,已无 current)。 */
+interface SessionListLike {
+  subscribe(fn: () => void): () => void
+  getSnapshot(): { byId?: Record<string, { cwd?: string }> }
+}
+/** apply() 注入成功后保存,供 @ 触发源按 sessionId 兜底查 cwd。 */
+let sessionsList: SessionListLike | null = null
+/** 当前会话 id 读取器(uiSession.adapter.current 的 StandardSourceBinding.key)。 */
+let readCurrentSessionId: (() => string | undefined) | null = null
 
 // ---------- 图标 ----------
 const FOLDER_D = 'M1.5 2.5A1.5 1.5 0 0 1 3 1h3.2l1.6 2H13a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 13 13H3a1.5 1.5 0 0 1-1.5-1.5v-9z'
@@ -259,8 +303,18 @@ const setActiveRoot = (r: string | null): void => {
 
 /** 从 sessions 服务自动推导工作区根目录(面板未打开时的 fallback) */
 let sessionsCwdRoot: string | null = null
-/** 当前会话的 cwd(用于 @ 引用格式化:判断是否可用相对路径) */
+/** 当前会话的 cwd(用于 @ 引用格式化:判断是否可用相对路径;面板挂载时作为初始根目录) */
 let activeCwd: string | null = null
+const cwdListeners = new Set<(c: string | null) => void>()
+const setActiveCwd = (c: string | null): void => {
+  if (c === activeCwd) return
+  activeCwd = c
+  cwdListeners.forEach((fn) => fn(c))
+}
+const subscribeCwd = (fn: (c: string | null) => void): (() => void) => {
+  cwdListeners.add(fn)
+  return () => { cwdListeners.delete(fn) }
+}
 function getEffectiveRoot(): string | null {
   return activeWorkspaceRoot ?? sessionsCwdRoot
 }
@@ -408,10 +462,12 @@ function Panel(props: {
   onDraggingChange: (v: 'file' | 'dir' | null) => void
 }) {
   const wsState = props.useWorkspaces((s: unknown) => s) as { items?: Array<{ workspaceId: string; path: string; title: string }>; recentWorkspaceId?: string; state?: string }
-  const sessions = props.useSessions((s: unknown) => s) as { current?: string; byId?: Record<string, { cwd?: string }> }
+  // 0.2.0 起 useSessions 快照已无 current 字段:保留订阅用于会话列表变化时重渲染,
+  // 当前会话的 cwd 由 apply() 写入 activeCwd 并在这里订阅。
+  props.useSessions((s: unknown) => s)
   const workspaces = wsState.items ?? []
-  const currentSummary = sessions.current && sessions.byId ? sessions.byId[sessions.current] : undefined
-  const cwd = currentSummary?.cwd
+  const [cwd, setCwd] = useState<string | undefined>(activeCwd ?? undefined)
+  useEffect(() => subscribeCwd((c) => setCwd(c ?? undefined)), [])
 
   const [root, setRoot] = useState<string | null>(null)
   const [dirs, setDirs] = useState<Record<string, { loading: boolean; error: string | null; entries: WsEntry[]; truncated: boolean }>>({})
@@ -424,6 +480,8 @@ function Panel(props: {
   const [c, setC] = useState(getCfg())
   useEffect(() => subscribeCfg(setC), [])
 
+  // DSH 0.2.0 的 WorkspaceSnapshot 已无 recentWorkspaceId(0.1.5 在 workspaces 服务上),
+  // 这里恒为 undefined,自动落到 firstItem —— 属预期降级,不作为错误。
   const recentItem = workspaces.find((w) => w.workspaceId === wsState.recentWorkspaceId)
   const firstItem = workspaces[0]
 
@@ -599,11 +657,15 @@ function Panel(props: {
   }
 
   const addWorkspace = async (): Promise<void> => {
-    if (!workspacesSvc) return
+    const ws = svc<WorkspacesSvcLike>('workspaces')
+    if (ws === null) {
+      console.warn('[dsh-workspace-explorer] workspaces service unavailable')
+      return
+    }
     try {
-      const p = await workspacesSvc.pickDirectory()
+      const p = await pickDirectory()
       if (!p) return
-      const v = await workspacesSvc.create({ path: p })
+      const v = await ws.create({ path: p })
       if (v?.path) setRoot(v.path)
     } catch (err) {
       console.warn('addWorkspace failed', String((err as Error)?.message ?? err))
@@ -1066,7 +1128,19 @@ export const inject = ['slots', 'locale']
 export function apply(ctx: CtxLike): void {
   const slots = ctx.get('slots') as SlotsLike | undefined
   if (slots === undefined) return
-  workspacesSvc = (ctx.get('workspaces') as WorkspacesSvcLike | undefined) ?? null
+  // workspaces / uiWorkspace 未在本插件 inject 列表里,创建时机可能晚于 apply(),延迟到调用时解析
+  root.ctx = ctx
+  // 诊断:cordis inject 会在服务就绪后回调,便于确认 0.2.0 服务是否真的存在
+  for (const name of ['workspaces', 'uiWorkspace']) {
+    try {
+      ctx.inject([name], () => {
+        console.info('[dsh-workspace-explorer] service', name, 'ready, ctx.get =', svc(name) !== null)
+        return () => {}
+      })
+    } catch (err) {
+      console.info('[dsh-workspace-explorer] service', name, 'inject failed', String((err as Error)?.message ?? err))
+    }
+  }
   const locale = ctx.get('locale') as LocaleLike | undefined
   if (locale !== undefined) {
     try {
@@ -1087,50 +1161,70 @@ export function apply(ctx: CtxLike): void {
     }
   }
 
-  // ---------- 自动推导工作区根目录(面板未打开时,从 sessions 服务获取 cwd) ----------
+  // ---------- 自动推导工作区根目录(面板未打开时,从当前会话读 cwd) ----------
   // 这样 @ 触发源即使面板未打开也能搜索文件
+  // DSH 0.2.0 起 sessions.list.getSnapshot() 不再有 current 字段,
+  // 当前会话改由 uiSession.adapter.current(StandardSourceBinding.key = sessionId) 提供。
   try {
-    ctx.inject(['sessions'], (scope) => {
-      const sessions = (scope as unknown as { sessions?: { list: { subscribe: (fn: () => void) => () => void; getSnapshot: () => { current?: string; byId?: Record<string, { cwd?: string }> } } } }).sessions
+    ctx.inject(['uiSession', 'sessions'], (scope) => {
+      const s = scope as unknown as {
+        sessions?: { list: SessionListLike }
+        uiSession?: { adapter?: { current?: HostObservableLike<{ key?: string | undefined }> } }
+      }
+      const sessions = s.sessions
+      const current = s.uiSession?.adapter?.current
       if (sessions === undefined) return
+      const currentId = (): string | undefined => current?.getSnapshot?.()?.key
+      sessionsList = sessions.list
+      readCurrentSessionId = currentId
       const update = (): void => {
         const snap = sessions.list.getSnapshot()
-        const currentId = snap.current
-        const currentSummary = currentId && snap.byId ? snap.byId[currentId] : undefined
+        const id = currentId()
+        const currentSummary = id !== undefined && snap.byId ? snap.byId[id] : undefined
         const cwd = currentSummary?.cwd ?? null
-        activeCwd = cwd
+        const changed = cwd !== activeCwd
+        setActiveCwd(cwd)
         // 只在面板未主动设置根目录时使用 sessions cwd 作为 fallback
         if (activeWorkspaceRoot === null) {
           sessionsCwdRoot = cwd
-          if (cwd !== null) {
+          if (cwd !== null && changed) {
             console.info('[dsh-workspace-explorer] auto-discovered workspace root from session:', cwd)
           }
         }
       }
       update()
-      return sessions.list.subscribe(update)
+      const disposeList = sessions.list.subscribe(update)
+      const disposeCurrent = current?.subscribe(update)
+      return () => {
+        disposeList()
+        if (disposeCurrent !== undefined) disposeCurrent()
+      }
     })
   } catch {
-    // sessions 服务不可用时静默忽略(不影响核心功能)
+    // sessions / uiSession 服务不可用时静默忽略(不影响核心功能)
   }
 
-  // ---------- 自动设置输入桥:从 conversation.input 服务获取 inputActions ----------
+  // ---------- 自动设置输入桥:从 conversation.input 服务获取 setDraft ----------
   // DockBridge 可能未挂载(会话未激活或 dock 槽位未渲染),这里作为 fallback
   try {
     ctx.inject(['sessions', 'conversation'], (scope) => {
-      const sessions = (scope as unknown as { sessions?: { list: { subscribe: (fn: () => void) => () => void; getSnapshot: () => { current?: string } }; scope: (id: string) => unknown } }).sessions
-      const conversation = (scope as unknown as { conversation?: { input: { for: (scope: unknown) => { actions?: { setDraft(text: string): void } } } } }).conversation
+      const s = scope as unknown as {
+        sessions?: { list: SessionListLike; scope: (id: string) => unknown }
+        conversation?: { input: { for: (scope: unknown) => { setDraft?: (text: string) => void } } }
+      }
+      const sessions = s.sessions
+      const conversation = s.conversation
       if (sessions === undefined || conversation === undefined) return
       const update = (): void => {
-        const snap = sessions.list.getSnapshot()
-        const currentId = snap.current
+        const currentId = readCurrentSessionId?.()
         if (!currentId) return
         try {
           const actx = sessions.scope(currentId)
           if (actx === undefined) return
+          // input.for() 返回 SessionInput:setDraft 直接挂在 face 上(没有 .actions)
           const inputFace = conversation.input.for(actx)
-          const inputActions = inputFace?.actions
-          if (inputActions && typeof inputActions.setDraft === 'function') {
+          const setDraft = inputFace?.setDraft
+          if (typeof setDraft === 'function') {
             // 只在 bridge 未设置时更新(DockBridge 优先)
             if (bridge === null) {
               setBridge({
@@ -1139,7 +1233,7 @@ export function apply(ctx: CtxLike): void {
                   const textarea = document.querySelector('[data-composer-card] textarea') as HTMLTextAreaElement | null
                   const draft = textarea?.value ?? ''
                   const sep = draft === '' || draft.endsWith('\n') ? '' : '\n'
-                  inputActions.setDraft(draft + sep + text)
+                  setDraft(draft + sep + text)
                 },
               })
               console.info('[dsh-workspace-explorer] bridge set via conversation.input fallback')
@@ -1169,8 +1263,19 @@ export function apply(ctx: CtxLike): void {
           name: 'workspace-files',
           order: 10,
 
-          async candidates(_session, req) {
-            const root = getEffectiveRoot()
+          async candidates(session, req) {
+            let root = getEffectiveRoot()
+            // 面板从未打开、uiSession 尚未建立时的兜底:
+            // 直接用触发源传入的 sessionId 查该会话 cwd(0.2.0 快照已无 current)。
+            if (!root && session.sessionId) {
+              const cwd = sessionsList?.getSnapshot()?.byId?.[session.sessionId]?.cwd
+              if (cwd) {
+                setActiveCwd(cwd)
+                if (activeWorkspaceRoot === null) sessionsCwdRoot = cwd
+                root = cwd
+                console.info('[dsh-workspace-explorer] @ candidates: root from session cwd:', cwd)
+              }
+            }
             if (!root) {
               console.debug('[dsh-workspace-explorer] @ candidates: no workspace root available')
               return []

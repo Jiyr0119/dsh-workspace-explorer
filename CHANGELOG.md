@@ -1,5 +1,16 @@
 # Changelog
 
+## [v0.9.0] - 2026-09-30
+
+### 兼容 DSH 0.2.0 Compatibility with DSH 0.2.0
+
+- **目录选择迁移** — 添加工作区改为 `ctx.get('uiWorkspace').pickDirectory()`(DSH 0.2.0 把 `workspaces.pickDirectory` 移到了 workspace 导航服务);仍保留 `workspaces.pickDirectory` 作为 0.1.5 回退 / **Directory picker migration** — "Add workspace" now calls `ctx.get('uiWorkspace').pickDirectory()` (DSH 0.2.0 moved `workspaces.pickDirectory` onto the workspace navigation service); the 0.1.5 `workspaces.pickDirectory` path is kept as a fallback.
+- **当前会话读取** — 0.2.0 的 `SessionListState` 已无 `current`,改用 `uiSession.adapter.current` 的 `key` 取 sessionId,并同时订阅 `sessions.list` 与 `adapter.current` 更新输入桥 cwd;`@` 菜单与面板根目录因此不再需要面板先打开 / **Current session lookup** — 0.2.0's `SessionListState` no longer has `current`; the sessionId now comes from `uiSession.adapter.current`'s `key`, and both `sessions.list` and `adapter.current` are subscribed to refresh the input-bridge cwd, so the `@` menu and panel root no longer require the panel to be open first.
+- **服务延迟解析** — `workspaces` / `uiWorkspace` 在 `apply()` 时可能尚未创建,改为调用时按需 `ctx.get` 并在就绪时打印诊断行 / **Lazy service resolution** — `workspaces` / `uiWorkspace` may not exist yet when `apply()` runs; they are now resolved via `ctx.get` at call time, with a diagnostic line logged once cordis reports them ready.
+- **输入桥 fallback 修复** — 0.1.5 起 `inputFace.actions` 已不存在,回退桥改用 `inputFace.setDraft`,拖拽与 `@` 选择在 dock 未挂载时也能插入 / **Input bridge fallback fix** — `inputFace.actions` has not existed since 0.1.5; the fallback bridge now uses `inputFace.setDraft`, so drag-and-drop and `@` selection still insert when the dock is not mounted.
+- **依赖与构建对齐 0.2.0** — `@deepseek-ai/*` devDependencies 升到 `0.2.0-rc.2`、`@deepseek-ai/cordis` 升到 `~4.0.4`;`dsh.client.inject` 改为 0.2.0 的 client 包集合(新增 ui-workspace / ui-session / api-workspace-controller,移除 dsh-client-runtime);tsdown platform seed 同步;`dsh.plugin.json` 新增 `engines.dsh: ">=0.2.0"` / **Dependencies and build aligned to 0.2.0** — `@deepseek-ai/*` devDependencies moved to `0.2.0-rc.2` and `@deepseek-ai/cordis` to `~4.0.4`; `dsh.client.inject` now lists the 0.2.0 client packages (adds ui-workspace / ui-session / api-workspace-controller, drops dsh-client-runtime); the tsdown platform seed matches; `dsh.plugin.json` declares `engines.dsh: ">=0.2.0"`.
+- **会话工作区降级** — 0.2.0 没有 `recentWorkspaceId`,面板根目录按「会话 cwd → 第一个工作区」顺序取值 / **Session workspace fallback** — 0.2.0 has no `recentWorkspaceId`; the panel root falls back from the session cwd to the first workspace.
+
 ## [v0.6.3] - 2026-08-25
 
 ### 改进 Improvement
