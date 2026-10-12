@@ -5,7 +5,7 @@
  * - list : 列一个目录层级(懒加载)
  * - peek : 按行分页读取文本文件(offset/limit),支持「插入完整内容」(whole,≤32KB)
  * - tree : 递归生成目录树节点(限深/限条目),供目录拖拽与多选批量插入
- * - config: 运行期配置(噪声目录 / 最大条目 / 预览行数)
+ * - config: 运行期配置(噪声目录 / 最大条目 / 预览行数);面板设置经 Config(volatile)持久化到 Profile
  *
  * 安全边界:list/peek/tree 全部以「工作区根目录 + 相对路径」寻址,服务端校验 rel
  * 不含 ''/./.. 段,任何文件读写都被约束在工作区根目录内,杜绝任意路径读取。
@@ -13,6 +13,7 @@
 import { open, readdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import type { Context } from 'cordis'
+import z from '@deepseek-ai/schemastery'
 
 /** 请求面(结构子集:URL/method/headers + 异步 body 迭代)。 */
 export interface WsHttpRequest {
@@ -217,9 +218,52 @@ export async function buildTreeNodes(
   }
 }
 
+/**
+ * 插件持久化配置(DSH 0.1.7+ settings 域)。
+ *
+ * 声明在 Host 入口上后,DSH 会把带 `.volatile()` 的字段投影为「可热编辑」表单:
+ * - 持久化到当前 Profile 的组合配置(重启后依然生效);
+ * - Web 设置页 / 插件管理器可直接编辑,无需重挂载插件;
+ * - 客户端经 `configForms.get('workspace-explorer')` 读写同一份值。
+ *
+ * 字段集合必须与客户端 WsCfg(面板设置)一一对应,顺序即展示顺序。
+ */
+export const Config = z.object({
+  hideNoise: z.boolean().default(true).volatile(),
+  showSize: z.boolean().default(true).volatile(),
+  refStyle: z.union(['relative', 'absolute']).default('relative').volatile(),
+  peekLines: z.union([30, 60, 120]).default(60).volatile(),
+  width: z.union([320, 384, 480]).default(384).volatile(),
+})
+
+/** 读取 volatile 配置句柄(或裸值)中的布尔值,失败返回 fallback。 */
+function readBool(v: unknown, fallback: boolean): boolean {
+  let raw = v
+  if (typeof v === 'object' && v !== null && typeof (v as { get?: unknown }).get === 'function') {
+    try { raw = (v as { get(): unknown }).get() } catch { raw = undefined }
+  }
+  return typeof raw === 'boolean' ? raw : fallback
+}
+
+/** 读取 volatile 配置句柄(或裸值)中的有限数字,失败返回 fallback。 */
+function readNum(v: unknown, fallback: number): number {
+  let raw = v
+  if (typeof v === 'object' && v !== null && typeof (v as { get?: unknown }).get === 'function') {
+    try { raw = (v as { get(): unknown }).get() } catch { raw = undefined }
+  }
+  return typeof raw === 'number' && Number.isFinite(raw) ? raw : fallback
+}
+
 export default {
   inject: ['webServer'],
-  apply(ctx: Context) {
+  Config,
+  apply(ctx: Context, config?: Record<string, unknown>) {
+    // 从持久化配置读取宿主默认值(客户端就绪后仍会 POST /dsh-we/api/config 覆盖):
+    // 重启后在页面连接前,列表/预览行为即与用户设置一致。
+    if (config !== undefined && config !== null && typeof config === 'object') {
+      cfg.ignore = readBool(config.hideNoise, true) ? [...DEFAULT_IGNORED] : []
+      cfg.peekMaxLines = Math.min(500, Math.max(10, Math.floor(readNum(config.peekLines, 60))))
+    }
     const routes: Array<{ kind: 'exact' | 'prefix'; path: string; handler: (req: WsHttpRequest, res: WsHttpResponse) => void | Promise<void> }> = [
       {
         kind: 'exact',

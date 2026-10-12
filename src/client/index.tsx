@@ -53,7 +53,7 @@ const DICTS: Record<string, Record<string, string>> = {
     'settings.refStyle': '文件引用格式', 'settings.refStyle.rel': '相对路径', 'settings.refStyle.abs': '绝对路径',
     'settings.peekLines': '预览行数',
     'settings.width': '面板宽度', 'settings.width.narrow': '紧凑', 'settings.width.std': '标准', 'settings.width.wide': '宽松',
-    'settings.restore': '恢复默认', 'settings.note': '配置在本次会话内生效,重启插件后恢复默认。',
+    'settings.restore': '恢复默认', 'settings.note': '设置会持久保存到当前 Profile,重启后依然生效。',
     'settings.nav': '工作区文件',
     'star.ask': '⭐ 顺手留颗 Star，作者能高兴一整天',
     'star.cta': '★ 给一颗 Star',
@@ -85,7 +85,7 @@ const DICTS: Record<string, Record<string, string>> = {
     'settings.refStyle': 'File reference format', 'settings.refStyle.rel': 'Relative path', 'settings.refStyle.abs': 'Absolute path',
     'settings.peekLines': 'Preview lines',
     'settings.width': 'Panel width', 'settings.width.narrow': 'Narrow', 'settings.width.std': 'Standard', 'settings.width.wide': 'Wide',
-    'settings.restore': 'Reset to defaults', 'settings.note': 'Settings apply for this run; they reset when the plugin restarts.',
+    'settings.restore': 'Reset to defaults', 'settings.note': 'Settings persist in this profile and survive restarts.',
     'settings.nav': 'Workspace Explorer',
     'star.ask': '⭐ Drop a Star if it helped — it makes the author\'s day',
     'star.cta': '★ Give a Star',
@@ -193,7 +193,10 @@ interface PeekResult {
 interface TreeResult { ok: boolean; error?: string; name?: string; entries?: WsEntry[]; entryCount?: number; truncated?: boolean }
 interface ConfigResult { ok: boolean; ignore?: string[]; max?: number; peekMaxLines?: number }
 
-// ---------- 运行期配置(内存级;面板设置 Tab 与 DSH 设置页共享) ----------
+// ---------- 面板配置(默认内存级;DSH 0.1.7+ 存在 settings 域时持久化到 Profile) ----------
+// 持久化机制:Host 入口导出 Config(字段 .volatile()),DSH settings 域把它投影为可热编辑表单;
+// 浏览器侧经 configForms.get(entryId) 读写同一份值(写入落在 Profile 组合配置里,重启后保留)。
+// 旧版 DSH / 零构建动态版没有 configForms 服务时,自动退回纯内存配置(行为与 0.9.0 一致)。
 const NOISE = ['.git', 'node_modules', '__pycache__', '.venv', 'venv', '.pytest_cache', '.ruff_cache', '.mypy_cache', 'dist', 'build', '.next', '.nuxt', 'coverage', '.idea', 'target']
 interface WsCfg {
   hideNoise: boolean
@@ -203,6 +206,25 @@ interface WsCfg {
   width: number
 }
 const CFG_DEFAULTS: WsCfg = { hideNoise: true, showSize: true, refStyle: 'relative', peekLines: 60, width: 384 }
+const CFG_FIELDS = ['hideNoise', 'showSize', 'refStyle', 'peekLines', 'width'] as const
+/** 设置命名空间 = 组合补丁里的 entry id(cordis.patch.yml → workspace-explorer)。 */
+const SETTINGS_NS = 'workspace-explorer'
+/** 备用命名空间:不同安装路径下 entry id 可能不同,按序探测。 */
+const SETTINGS_NS_CANDIDATES = [SETTINGS_NS, 'dsh-workspace-explorer', 'dsh-external/dsh-workspace-explorer', '@jiyr0119/dsh-workspace-explorer']
+/** DSH settings 域表单(configForms.get(ns);见 dsh-client-ui-settings 的 ConfigFormController)。 */
+interface SettingsFormLike {
+  getSnapshot(): { status?: string; value?: Record<string, unknown> | undefined }
+  subscribe(fn: () => void): () => void
+  set(field: string, value: unknown): Promise<boolean>
+}
+/** 共享 describe 镜像(所有表单派生自同一份 settings 文档快照)。 */
+interface SettingsMirrorLike extends HostObservableLike<{ view?: { namespaces?: Array<{ ns: string; schema?: { dict?: Record<string, unknown> } | undefined }> } | undefined }> {
+  ensure?(): Promise<void>
+}
+interface ConfigFormsLike {
+  get(ns: string): SettingsFormLike
+  describe(): SettingsMirrorLike
+}
 let cfg: WsCfg = { ...CFG_DEFAULTS }
 const cfgListeners = new Set<(c: WsCfg) => void>()
 const getCfg = (): WsCfg => cfg
@@ -210,8 +232,66 @@ const notifyCfg = (): void => { cfgListeners.forEach((fn) => fn(cfg)) }
 const syncHostCfg = (): void => {
   void api<ConfigResult>('config', { ignore: cfg.hideNoise ? NOISE.slice() : [], peekMaxLines: cfg.peekLines }).catch(() => {})
 }
-const setCfg = (patch: Partial<WsCfg>): void => { cfg = { ...cfg, ...patch }; notifyCfg(); syncHostCfg() }
-const resetCfg = (): void => { cfg = { ...CFG_DEFAULTS }; notifyCfg(); syncHostCfg() }
+/** 当前绑定的 settings 表单(configForms 就绪后由 apply() 接入;null = 纯内存模式)。 */
+let settingsForm: SettingsFormLike | null = null
+/** 表单未就绪期间累积的写入,就绪后 flush(避免丢失启动早期的用户改动)。 */
+let pendingWrites: Partial<WsCfg> | null = null
+/** 把 Host settings 快照校验为合法配置补丁(逐字段类型/范围过滤,非法字段忽略)。 */
+function sanitizeCfg(raw: unknown): Partial<WsCfg> {
+  const out: Partial<WsCfg> = {}
+  if (raw === null || typeof raw !== 'object') return out
+  const v = raw as Record<string, unknown>
+  if (typeof v.hideNoise === 'boolean') out.hideNoise = v.hideNoise
+  if (typeof v.showSize === 'boolean') out.showSize = v.showSize
+  if (v.refStyle === 'relative' || v.refStyle === 'absolute') out.refStyle = v.refStyle
+  if (typeof v.peekLines === 'number' && Number.isFinite(v.peekLines)) out.peekLines = Math.min(500, Math.max(10, Math.floor(v.peekLines)))
+  if (typeof v.width === 'number' && Number.isFinite(v.width)) out.width = Math.min(640, Math.max(240, Math.floor(v.width)))
+  return out
+}
+/** 采纳外部(Host settings)值:仅应用与当前不同的字段并广播 + 同步 Host 路由;不回写 settings,避免回声循环。 */
+function adoptCfg(raw: unknown): void {
+  const patch = sanitizeCfg(raw)
+  const changed: Partial<WsCfg> = {}
+  for (const key of CFG_FIELDS) {
+    const value = patch[key]
+    if (value !== undefined && value !== cfg[key]) Object.assign(changed, { [key]: value })
+  }
+  if (Object.keys(changed).length === 0) return
+  cfg = { ...cfg, ...changed }
+  notifyCfg()
+  syncHostCfg()
+}
+/** 把补丁记入待写队列并尝试 flush(表单未就绪时仅入队)。 */
+function persistCfg(patch: Partial<WsCfg>): void {
+  const pending: Partial<WsCfg> = pendingWrites ?? {}
+  for (const key of CFG_FIELDS) {
+    const value = patch[key]
+    if (value !== undefined) Object.assign(pending, { [key]: value })
+  }
+  pendingWrites = pending
+  flushPendingCfg()
+}
+/** 就绪时把待写队列逐字段写入 Host(相同值跳过);返回是否已派发写入(在途时调用方应跳过采纳,等 fold 回来)。 */
+function flushPendingCfg(): boolean {
+  const form = settingsForm
+  const pending = pendingWrites
+  if (form === null || pending === null) return false
+  if (form.getSnapshot().status !== 'ready') return false
+  pendingWrites = null
+  for (const key of CFG_FIELDS) {
+    const value = pending[key]
+    if (value === undefined) continue
+    if (form.getSnapshot().value?.[key] === value) continue
+    void form.set(key, value).then((ok) => {
+      if (!ok) console.warn('[dsh-workspace-explorer] settings write rejected:', key)
+    }).catch((err: unknown) => {
+      console.warn('[dsh-workspace-explorer] settings write failed:', key, String((err as Error)?.message ?? err))
+    })
+  }
+  return true
+}
+const setCfg = (patch: Partial<WsCfg>): void => { cfg = { ...cfg, ...patch }; notifyCfg(); syncHostCfg(); persistCfg(patch) }
+const resetCfg = (): void => { cfg = { ...CFG_DEFAULTS }; notifyCfg(); syncHostCfg(); persistCfg({ ...CFG_DEFAULTS }) }
 const subscribeCfg = (fn: (c: WsCfg) => void): (() => void) => { cfgListeners.add(fn); return () => { cfgListeners.delete(fn) } }
 syncHostCfg()
 
@@ -1159,6 +1239,61 @@ export function apply(ctx: CtxLike): void {
     } catch (err) {
       console.warn('locale init failed, fallback zh', String(err))
     }
+  }
+
+  // ---------- 持久化配置接入(DSH 0.1.7+ settings 域) ----------
+  // configForms 由 dsh-client-ui-settings 提供;写入落在 Profile 组合配置(重启后保留)。
+  // 旧版 DSH / 零构建动态版没有该服务 → inject 回调永不触发,保持内存级配置(不影响核心功能)。
+  try {
+    ctx.inject(['configForms'], (scope) => {
+      const forms = (scope as unknown as { configForms?: ConfigFormsLike }).configForms
+      if (forms === undefined || typeof forms.get !== 'function') return
+      const mirror = forms.describe()
+      let bound: SettingsFormLike | null = null
+      let boundNs: string | null = null
+      let offForm: (() => void) | null = null
+      const adopt = (): void => { if (bound !== null) adoptCfg(bound.getSnapshot().value) }
+      const onChange = (): void => {
+        // 写入在途时跳过采纳:等 write answer fold 回来再读,避免闪回旧值
+        if (flushPendingCfg()) return
+        adopt()
+      }
+      const bind = (ns: string): void => {
+        if (bound !== null && boundNs === ns) return
+        offForm?.()
+        bound = forms.get(ns)
+        boundNs = ns
+        settingsForm = bound
+        offForm = bound.subscribe(onChange)
+        console.info('[dsh-workspace-explorer] settings persisted via configForms ns =', ns)
+        onChange()
+      }
+      const sync = (): void => {
+        if (bound !== null && bound.getSnapshot().status === 'ready') return
+        const rows = mirror.getSnapshot().view?.namespaces
+        if (rows === undefined) return
+        // 优先按 Config 字段指纹识别命名空间(entry id 随安装方式可能不同)
+        const byFields = rows.find((r) => r.schema?.dict !== undefined && ('hideNoise' in r.schema.dict || 'peekLines' in r.schema.dict))
+        if (byFields !== undefined) { bind(byFields.ns); return }
+        const byId = rows.find((r) => SETTINGS_NS_CANDIDATES.includes(r.ns))
+        if (byId !== undefined) bind(byId.ns)
+      }
+      // 主路径:组合补丁里的 entry id;立即绑定以触发 mirror 首次读取
+      bind(SETTINGS_NS)
+      const offMirror = mirror.subscribe(sync)
+      void mirror.ensure?.()
+      sync()
+      return () => {
+        offMirror()
+        offForm?.()
+        offForm = null
+        if (settingsForm === bound) settingsForm = null
+        bound = null
+        boundNs = null
+      }
+    })
+  } catch {
+    // configForms 注入失败:静默退回内存级配置
   }
 
   // ---------- 自动推导工作区根目录(面板未打开时,从当前会话读 cwd) ----------

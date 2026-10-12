@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.10.0] - 2026-10-12
+
+### 新功能 Feature
+
+- **面板设置持久化** — Host 入口导出 `Config`(`.volatile()` schema),面板五项设置(隐藏噪声目录 / 显示文件大小 / 路径样式 / 预览行数 / 面板宽度)经 DSH 0.1.7+ settings 域写入当前 Profile(`cordis.patch.yml`),重启后依然生效;客户端经 `configForms` 服务绑定 `workspace-explorer` 命名空间,与设置页共享同一份值 / **Persisted panel settings** — the host entry now exports a `Config` (`.volatile()` schema); all five panel settings (hide noise dirs / show file size / path style / preview lines / panel width) persist into the current profile through the DSH 0.1.7+ settings domain (`cordis.patch.yml`) and survive restarts. The client binds the `workspace-explorer` namespace via the `configForms` service, so the plugin settings page and the Host share one source of truth.
+- **旧版自动回退** — 客户端经 `ctx.inject(['configForms'])` 接入;旧版 DSH / 零构建动态版没有该服务时自动退回内存级配置(与 0.9.0 行为一致),核心功能不受影响 / **Graceful fallback on older hosts** — the client opts in via `ctx.inject(['configForms'])`; on older DSH versions / the zero-build dynamic bundle where that service does not exist, it silently falls back to in-memory config (same behavior as 0.9.0) and core features are unaffected.
+
 ## [v0.9.0] - 2026-09-30
 
 ### 兼容 DSH 0.2.0 Compatibility with DSH 0.2.0

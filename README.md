@@ -136,7 +136,7 @@ dsh-workspace-explorer/
 
 ## Version
 
-Current version **v0.6.0** — the **M2 write path**: a 340px **split-view preview panel** (click the 👁 button before any file; the file tree stays visible on the right) and **in-panel file editing** (textarea mode with Save / Discard / Cancel, a “Modified” badge, and external-change detection on save).
+Current version **v0.10.0** — **persisted panel settings**: all five explorer settings (hide noise dirs / show file size / path style / preview lines / panel width) now live in the DSH 0.1.7+ settings domain and are saved to the current Profile (`cordis.patch.yml`), so they survive restarts and can also be edited from DSH's 设置 → 工作区文件 page.
 See [CHANGELOG.md](./CHANGELOG.md) for release notes.
 
 ## Roadmap
@@ -163,10 +163,17 @@ Focused on the two lines that actually matter to the product: the **read path** 
 - [x] **In-panel file editing**: textarea mode with save/discard/cancel; change detection (warns when file modified externally)
 - [x] **Host write route**: `/dsh-we/api/write` with atomic save and size-based change detection
 
+**In progress 🚧 — v0.10.0 (DSH 0.1.7+ platform features)**
+
+- [x] **Persisted panel settings** — Host `Config` (`.volatile()` schema) + client `configForms` binding; all five settings are written to the profile (`cordis.patch.yml`) and survive restarts
+- [ ] **Host-side content search** — `/dsh-we/api/search` so the panel filter matches file contents (fixes the stale-tree case)
+- [ ] **Reveal / copy path via `dsh-native-command`** — open the OS file manager at the file, copy the absolute path
+- [ ] **Open file → conversation preview** — `openReference` integration so clicking a file can attach it as a previewable reference
+
 **Parked backlog** (do when real demand shows up)
 
-- Content search across loaded dirs (host-side grep); recent files / favorites
-- Draggable / resizable panel that remembers position & width; full keyboard navigation; copy path / reveal in the OS file manager
+- Recent files / favorites
+- Draggable / resizable panel that remembers position; full keyboard navigation
 - Virtual scrolling (huge dirs); light/dark theme regression checks; Playwright e2e
 
 **Upstream-dependent chores**

@@ -1,4 +1,5 @@
 import type { Context } from 'cordis';
+import z from '@deepseek-ai/schemastery';
 /** 请求面(结构子集:URL/method/headers + 异步 body 迭代)。 */
 export interface WsHttpRequest {
     url?: string;
@@ -32,8 +33,44 @@ declare module 'cordis' {
         };
     }
 }
+/**
+ * 插件持久化配置(DSH 0.1.7+ settings 域)。
+ *
+ * 声明在 Host 入口上后,DSH 会把带 `.volatile()` 的字段投影为「可热编辑」表单:
+ * - 持久化到当前 Profile 的组合配置(重启后依然生效);
+ * - Web 设置页 / 插件管理器可直接编辑,无需重挂载插件;
+ * - 客户端经 `configForms.get('workspace-explorer')` 读写同一份值。
+ *
+ * 字段集合必须与客户端 WsCfg(面板设置)一一对应,顺序即展示顺序。
+ */
+export declare const Config: z<Schemastery.ObjectS<NoInfer<{
+    hideNoise: z<boolean, boolean, "volatile-defined">;
+    showSize: z<boolean, boolean, "volatile-defined">;
+    refStyle: z<"relative" | "absolute", "relative" | "absolute", "volatile-defined">;
+    peekLines: z<60 | 30 | 120, 60 | 30 | 120, "volatile-defined">;
+    width: z<320 | 384 | 480, 320 | 384 | 480, "volatile-defined">;
+}>>, Schemastery.ObjectT<NoInfer<{
+    hideNoise: z<boolean, boolean, "volatile-defined">;
+    showSize: z<boolean, boolean, "volatile-defined">;
+    refStyle: z<"relative" | "absolute", "relative" | "absolute", "volatile-defined">;
+    peekLines: z<60 | 30 | 120, 60 | 30 | 120, "volatile-defined">;
+    width: z<320 | 384 | 480, 320 | 384 | 480, "volatile-defined">;
+}>>, "plain">;
 declare const _default: {
     inject: string[];
-    apply(ctx: Context): void;
+    Config: z<Schemastery.ObjectS<NoInfer<{
+        hideNoise: z<boolean, boolean, "volatile-defined">;
+        showSize: z<boolean, boolean, "volatile-defined">;
+        refStyle: z<"relative" | "absolute", "relative" | "absolute", "volatile-defined">;
+        peekLines: z<60 | 30 | 120, 60 | 30 | 120, "volatile-defined">;
+        width: z<320 | 384 | 480, 320 | 384 | 480, "volatile-defined">;
+    }>>, Schemastery.ObjectT<NoInfer<{
+        hideNoise: z<boolean, boolean, "volatile-defined">;
+        showSize: z<boolean, boolean, "volatile-defined">;
+        refStyle: z<"relative" | "absolute", "relative" | "absolute", "volatile-defined">;
+        peekLines: z<60 | 30 | 120, 60 | 30 | 120, "volatile-defined">;
+        width: z<320 | 384 | 480, 320 | 384 | 480, "volatile-defined">;
+    }>>, "plain">;
+    apply(ctx: Context, config?: Record<string, unknown>): void;
 };
 export default _default;
