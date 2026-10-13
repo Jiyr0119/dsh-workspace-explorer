@@ -159,7 +159,7 @@ dsh-workspace-explorer/
 **进行中 🚧 — v0.10.0(DSH 0.1.7+ 平台能力)**
 
 - [x] **面板设置持久化** — Host 导出 `Config`(`.volatile()` schema)+ 客户端 `configForms` 绑定;五项设置写入 Profile(`cordis.patch.yml`),重启后保留
-- [ ] **宿主侧内容搜索** — `/dsh-we/api/search`,让面板过滤匹配文件内容(修复树过期场景)
+- [x] **宿主侧内容搜索** — `/dsh-we/api/search`;面板过滤同时匹配文件内容(文件名命中 + `文件 :行号` 内容命中,命中片段高亮)
 - [ ] **原生「在文件管理器中显示 / 复制路径」** — 经 `dsh-native-command` 直接调系统能力
 - [ ] **打开文件 → 对话预览** — `openReference` 集成,点击文件可作为可预览引用附到会话
 

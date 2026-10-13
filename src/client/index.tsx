@@ -3,7 +3,7 @@
  *
  * 交互对标 dsh-better-sidebar:面板顶部 Tab 栏(文件 / 设置)切换页面;
  * 设置页逐项开关/下拉实时生效;并注册 DSH 设置壳的 settings.section 页。
- * 通过 /dsh-we/api/* JSON 路由调用 Host(list / peek / config)。
+ * 通过 /dsh-we/api/* JSON 路由调用 Host(list / peek / search / config)。
  * 浏览器 bundle(src/client/index.tsx → lib/client.js,__ModuleLoader__ 格式)。
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -28,10 +28,11 @@ async function api<T = unknown>(method: string, payload: Record<string, unknown>
 const NS = 'dsh-workspace-explorer'
 const DICTS: Record<string, Record<string, string>> = {
   zh: {
-    'panel.title': '工作区文件', 'ws.current': '当前目录', 'search.ph': '搜索文件(仅已加载目录)…',
+    'panel.title': '工作区文件', 'ws.current': '当前目录', 'search.ph': '搜索文件名或内容…',
     hint: '点击/拖拽插入;Shift 或 ⌘ 点击可多选批量插入', 'empty.title': '还没有可浏览的工作区。选择一个项目文件夹,即可在这里查看目录文件。',
-    'empty.add': '+ 选择文件夹作为工作区', 'loading.ws': '正在加载工作区…', hit: '匹配 {n} 项',
-    'hit.none': '没有匹配「{q}」的文件(搜索范围:已加载目录)', truncated: '已截断,仅显示前 {n} 项',
+    'empty.add': '+ 选择文件夹作为工作区', 'loading.ws': '正在加载工作区…',
+    'hit.name': '文件名匹配 {n} 项', 'hit.content': '内容匹配 {n} 行', 'hit.content.load': '正在搜索内容…',
+    'hit.none': '没有匹配「{q}」的文件名或内容', truncated: '已截断,仅显示前 {n} 项',
     loading: '加载中…', 'load.fail': '加载失败: ', read: '读取中…', 'read.fail': '读取失败: ',
     'too.large': '文件过大({s}),仅支持插入引用', binary: '二进制文件,仅支持插入引用',
     'btn.ref': '插入引用', 'btn.content': '插入内容',
@@ -60,10 +61,11 @@ const DICTS: Record<string, Record<string, string>> = {
     'drawer.tip': '文件目录', 'drawer.open': '打开文件抽屉', 'drawer.label': '工作区文件',
   },
   en: {
-    'panel.title': 'Workspace Files', 'ws.current': 'Current dir', 'search.ph': 'Search files (loaded dirs only)…',
+    'panel.title': 'Workspace Files', 'ws.current': 'Current dir', 'search.ph': 'Search file names or contents…',
     hint: 'Click / drag to insert; Shift or ⌘ click to select multiple', 'empty.title': 'No browsable workspace yet. Pick a project folder to view its files.',
-    'empty.add': '+ Choose a folder as workspace', 'loading.ws': 'Loading workspaces…', hit: '{n} match(es)',
-    'hit.none': 'No files match "{q}" (search covers loaded dirs)', truncated: 'Truncated: showing the first {n}',
+    'empty.add': '+ Choose a folder as workspace', 'loading.ws': 'Loading workspaces…',
+    'hit.name': 'File name matches: {n}', 'hit.content': 'Content matches: {n} lines', 'hit.content.load': 'Searching contents…',
+    'hit.none': 'No file names or contents match "{q}"', truncated: 'Truncated: showing the first {n}',
     loading: 'Loading…', 'load.fail': 'Load failed: ', read: 'Reading…', 'read.fail': 'Read failed: ',
     'too.large': 'File too large ({s}); reference only', binary: 'Binary file; reference only',
     'btn.ref': 'Insert reference', 'btn.content': 'Insert content',
@@ -192,6 +194,9 @@ interface PeekResult {
 }
 interface TreeResult { ok: boolean; error?: string; name?: string; entries?: WsEntry[]; entryCount?: number; truncated?: boolean }
 interface ConfigResult { ok: boolean; ignore?: string[]; max?: number; peekMaxLines?: number }
+/** 宿主内容搜索命中(/dsh-we/api/search)。 */
+interface SearchHit { rel: string; name: string; line: number; text: string; start: number; end: number }
+interface SearchResult { ok: boolean; error?: string; hits?: SearchHit[]; scanned?: number; truncated?: boolean }
 
 // ---------- 面板配置(默认内存级;DSH 0.1.7+ 存在 settings 域时持久化到 Profile) ----------
 // 持久化机制:Host 入口导出 Config(字段 .volatile()),DSH settings 域把它投影为可热编辑表单;
@@ -774,6 +779,33 @@ function Panel(props: {
     return () => { cancelled = true }
   }, [q, root])
 
+  // 内容搜索(宿主侧 grep,/dsh-we/api/search):防抖 300ms,序号丢弃过期响应
+  const [contentHits, setContentHits] = useState<SearchHit[]>([])
+  const [contentLoading, setContentLoading] = useState(false)
+  const [contentTruncated, setContentTruncated] = useState(false)
+  const contentSeq = useRef(0)
+  useEffect(() => {
+    const seq = ++contentSeq.current
+    if (q === '' || !root) {
+      setContentHits([])
+      setContentLoading(false)
+      setContentTruncated(false)
+      return
+    }
+    setContentLoading(true)
+    const timer = setTimeout(() => {
+      api<SearchResult>('search', { root, q })
+        .then((res) => {
+          if (contentSeq.current !== seq) return
+          setContentHits(res.ok && Array.isArray(res.hits) ? res.hits : [])
+          setContentTruncated(res.truncated === true)
+          setContentLoading(false)
+        })
+        .catch(() => { if (contentSeq.current === seq) setContentLoading(false) })
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [q, root])
+
   const collectMatches = (rel: string, out: WsEntry[]): void => {
     const data = dirs[rel]
     if (!data) return
@@ -913,14 +945,56 @@ function Panel(props: {
     return rows
   }
 
+  // 内容命中行:文件名 + 行号 + 片段(命中高亮);点击插入引用
+  const contentRowFor = (hit: SearchHit): React.ReactNode => {
+    const entry: WsEntry = {
+      name: hit.name, type: 'file', rel: hit.rel,
+      path: root ? root.replace(/\/+$/, '') + '/' + hit.rel : hit.rel,
+      size: null,
+    }
+    return (
+      <div key={`c:${hit.rel}:${hit.line}`} role="button" tabIndex={0}
+        className={C('dshwe-row') + ` ${C('dshwe-row-file')} ${C('dshwe-crow')}`}
+        title={entry.path + ` · L${hit.line} · ${tr('row.tip')}`}
+        draggable
+        onDragStart={(ev) => onDragStart(ev, entry)}
+        onClick={() => insertMarker(entry)}
+        onKeyDown={(ev) => {
+          if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); insertMarker(entry) }
+        }}>
+        <span className={C('dshwe-chev-slot')} />
+        {iconFor(entry, false)}
+        <span className={C('dshwe-name')}>{hit.name}</span>
+        <span className={C('dshwe-crow-line')}>:{hit.line}</span>
+        <span className={C('dshwe-crow-snippet')}>
+          {hit.text.slice(0, hit.start)}
+          <mark className={C('dshwe-mark')}>{hit.text.slice(hit.start, hit.end)}</mark>
+          {hit.text.slice(hit.end)}
+        </span>
+      </div>
+    )
+  }
+
   let body: React.ReactNode
   if (q !== '') {
     const hits: WsEntry[] = []
     collectAllMatches(hits)
+    const none = !contentLoading && hits.length === 0 && contentHits.length === 0
     body = (
       <>
-        <div className={C('dshwe-note')}>{tr('hit', { n: hits.length })}</div>
-        {hits.length ? hits.map((h) => rowFor(h, 0, false)) : <div className={C('dshwe-empty')}>{tr('hit.none', { q: filter })}</div>}
+        <div className={C('dshwe-note')}>{tr('hit.name', { n: hits.length })}</div>
+        {hits.map((h) => rowFor(h, 0, false))}
+        {contentLoading ? <div className={C('dshwe-note')}><span className={C('dshwe-spin')} />{tr('hit.content.load')}</div> : null}
+        {!contentLoading && contentHits.length > 0 ? (
+          <>
+            <div className={C('dshwe-note')}>
+              {tr('hit.content', { n: contentHits.length })}
+              {contentTruncated ? ` · ${tr('truncated', { n: contentHits.length })}` : ''}
+            </div>
+            {contentHits.map((h) => contentRowFor(h))}
+          </>
+        ) : null}
+        {none ? <div className={C('dshwe-empty')}>{tr('hit.none', { q: filter })}</div> : null}
       </>
     )
   } else if (root === null) {

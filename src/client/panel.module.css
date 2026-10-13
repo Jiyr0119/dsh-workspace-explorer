@@ -250,3 +250,8 @@
 :global(.dsw-text-ref):hover, :global([data-text-ref]):hover {
   background: rgba(90, 158, 111, .22);
 }
+/* ---- 内容搜索命中行(宿主 grep 结果):文件名 + :行号 + 命中片段 ---- */
+.dshwe-crow .dshwe-name { flex: 0 1 auto; max-width: 40%; font-weight: 600; }
+.dshwe-crow-line { flex: none; font-size: 11px; color: var(--dsw-alias-label-caption, #8a8a8a); font-variant-numeric: tabular-nums; }
+.dshwe-crow-snippet { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; color: var(--dsw-alias-label-secondary, #9a9a9a); }
+.dshwe-mark { background: rgba(255, 196, 0, .25); color: inherit; border-radius: 3px; padding: 0 1px; }

@@ -33,6 +33,30 @@ declare module 'cordis' {
         };
     }
 }
+/** 内容搜索命中(片段窗口内的行文本;start/end 为匹配区间,相对 text)。 */
+export interface SearchHit {
+    rel: string;
+    name: string;
+    line: number;
+    text: string;
+    start: number;
+    end: number;
+}
+/** 内容搜索结果。 */
+export interface SearchResult {
+    ok: boolean;
+    error?: string;
+    hits: SearchHit[];
+    scanned: number;
+    truncated: boolean;
+}
+/** 内容搜索可调上限(测试用;生产走默认常量)。 */
+export interface SearchOptions {
+    maxHits?: number;
+    maxFiles?: number;
+    maxFileBytes?: number;
+    maxPerFile?: number;
+}
 /**
  * 插件持久化配置(DSH 0.1.7+ settings 域)。
  *

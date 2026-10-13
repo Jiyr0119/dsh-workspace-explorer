@@ -1,16 +1,18 @@
 /**
  * dsh-workspace-explorer — Host 半区(原生包)
  *
- * 通过 webServer 注册 /dsh-we/api/* JSON 路由(list/peek/tree/config),供浏览器客户端调用。
+ * 通过 webServer 注册 /dsh-we/api/* JSON 路由(list/peek/tree/search/config),供浏览器客户端调用。
  * - list : 列一个目录层级(懒加载)
  * - peek : 按行分页读取文本文件(offset/limit),支持「插入完整内容」(whole,≤32KB)
  * - tree : 递归生成目录树节点(限深/限条目),供目录拖拽与多选批量插入
+ * - search: 内容搜索(工作区内文本文件逐行匹配,限文件数/命中数/文件大小)
  * - config: 运行期配置(噪声目录 / 最大条目 / 预览行数);面板设置经 Config(volatile)持久化到 Profile
  *
- * 安全边界:list/peek/tree 全部以「工作区根目录 + 相对路径」寻址,服务端校验 rel
+ * 安全边界:list/peek/tree/search 全部以「工作区根目录 + 相对路径」寻址,服务端校验 rel
  * 不含 ''/./.. 段,任何文件读写都被约束在工作区根目录内,杜绝任意路径读取。
  */
 import { open, readdir, readFile, stat, writeFile } from 'node:fs/promises'
+import type { Dirent } from 'node:fs'
 import { basename, join } from 'node:path'
 import type { Context } from 'cordis'
 import z from '@deepseek-ai/schemastery'
@@ -64,6 +66,15 @@ const TREE_MAX_DEPTH = 10                  // 目录树最大递归深度(支持
 const TREE_MAX_ENTRIES = 5000              // 目录树默认条目预算(支持大量文件搜索)
 const MAX_CACHED_LINES = 2_000_000         // 行偏移缓存上限(超过则退化为无缓存扫描)
 const LINE_CACHE_MAX_FILES = 64            // 行偏移缓存最多保留的文件数
+const SEARCH_MAX_HITS = 100                // 内容搜索命中上限(超出置 truncated)
+const SEARCH_MAX_FILES = 4000              // 内容搜索单次最多扫描文件数
+const SEARCH_MAX_FILE_BYTES = 1024 * 1024  // 内容搜索跳过大于 1MB 的文件
+const SEARCH_MAX_PER_FILE = 3              // 内容搜索单文件最多返回命中行
+const SEARCH_SNIPPET_BEFORE = 40           // 命中行片段:匹配点前保留字符数
+const SEARCH_SNIPPET_AFTER = 80            // 命中行片段:匹配点后保留字符数
+const SEARCH_SNIPPET_MAX = 400             // 命中行片段总长上限
+/** 内容搜索永远跳过的目录名(即使用户在树里关闭了噪声过滤,也不爬 node_modules 等)。 */
+const SEARCH_ALWAYS_IGNORED = new Set(DEFAULT_IGNORED)
 
 /** @internal 大文件行起始字节缓存(key=绝对路径),供单元测试断言,不构成公开 API。 */
 export const lineIndexCache = new Map<string, { offsets: number[]; scannedBytes: number; size: number }>()
@@ -218,6 +229,107 @@ export async function buildTreeNodes(
   }
 }
 
+/** 内容搜索命中(片段窗口内的行文本;start/end 为匹配区间,相对 text)。 */
+export interface SearchHit {
+  rel: string
+  name: string
+  line: number
+  text: string
+  start: number
+  end: number
+}
+
+/** 内容搜索结果。 */
+export interface SearchResult {
+  ok: boolean
+  error?: string
+  hits: SearchHit[]
+  scanned: number
+  truncated: boolean
+}
+
+/** 内容搜索可调上限(测试用;生产走默认常量)。 */
+export interface SearchOptions {
+  maxHits?: number
+  maxFiles?: number
+  maxFileBytes?: number
+  maxPerFile?: number
+}
+
+/**
+ * @internal 工作区内容搜索:逐行子串匹配(大小写不敏感)。
+ *
+ * 安全与性能边界:
+ * - 路径经 resolveRel 约束在 root 内;噪声目录(DEFAULT_IGNORED ∪ cfg.ignore)不进入;
+ * - 二进制(sniffBinary)与 >maxFileBytes 的文件跳过;
+ * - 受 maxFiles / maxHits / maxPerFile 三重上限约束,超限置 truncated 并立即停止。
+ */
+export async function searchContent(root: string, query: string, opts: SearchOptions = {}): Promise<SearchResult> {
+  const needle = query.trim().toLowerCase()
+  if (needle === '') return { ok: true, hits: [], scanned: 0, truncated: false }
+  const resolved = resolveRel(root, '')
+  if ('error' in resolved) return { ok: false, error: resolved.error, hits: [], scanned: 0, truncated: false }
+  const maxHits = Math.max(1, opts.maxHits ?? SEARCH_MAX_HITS)
+  const maxFiles = Math.max(1, opts.maxFiles ?? SEARCH_MAX_FILES)
+  const maxFileBytes = Math.max(1, opts.maxFileBytes ?? SEARCH_MAX_FILE_BYTES)
+  const maxPerFile = Math.max(1, opts.maxPerFile ?? SEARCH_MAX_PER_FILE)
+
+  const hits: SearchHit[] = []
+  let scanned = 0
+  let truncated = false
+
+  const scanFile = async (abs: string, rel: string, name: string): Promise<void> => {
+    if (truncated || hits.length >= maxHits) return
+    try {
+      const info = await stat(abs)
+      if (!info.isFile() || info.size === 0 || info.size > maxFileBytes) return
+      if (await sniffBinary(abs, info.size)) return
+      const text = (await readFile(abs)).toString('utf-8')
+      const lines = text.split('\n')
+      const lowerLines = lines.map((l) => l.toLowerCase())
+      let perFile = 0
+      for (let i = 0; i < lines.length && perFile < maxPerFile; i++) {
+        if (hits.length >= maxHits) { truncated = true; break }
+        const start = lowerLines[i].indexOf(needle)
+        if (start === -1) continue
+        const end = start + needle.length
+        const winStart = Math.max(0, start - SEARCH_SNIPPET_BEFORE)
+        const rawWin = lines[i].slice(winStart, end + SEARCH_SNIPPET_AFTER)
+        const snippet = rawWin.length > SEARCH_SNIPPET_MAX ? rawWin.slice(0, SEARCH_SNIPPET_MAX) : rawWin
+        hits.push({
+          rel, name, line: i + 1, text: snippet,
+          start: start - winStart,
+          end: Math.min(snippet.length, end - winStart),
+        })
+        perFile++
+      }
+    } catch { /* 读取失败的文件跳过(权限 / 竞态删除等) */ }
+  }
+
+  const walk = async (abs: string, rel: string): Promise<void> => {
+    if (truncated || scanned >= maxFiles) return
+    let dirents: Dirent<string>[]
+    try { dirents = await readdir(abs, { withFileTypes: true }) } catch { return }
+    for (const d of dirents) {
+      if (truncated || scanned >= maxFiles) { truncated = true; return }
+      const childAbs = join(abs, d.name)
+      const childRel = rel === '' ? d.name : `${rel}/${d.name}`
+      if (d.isDirectory()) {
+        if (SEARCH_ALWAYS_IGNORED.has(d.name) || cfg.ignore.includes(d.name)) continue
+        await walk(childAbs, childRel)
+      } else if (d.isFile()) {
+        scanned++
+        await scanFile(childAbs, childRel, d.name)
+      }
+    }
+  }
+
+  await walk(resolved.abs, '')
+  // 达到任一上限即视为可能截断(即使恰好无更多命中,也宁可如实提示)
+  if (scanned >= maxFiles || hits.length >= maxHits) truncated = true
+  return { ok: true, hits, scanned, truncated }
+}
+
 /**
  * 插件持久化配置(DSH 0.1.7+ settings 域)。
  *
@@ -340,6 +452,15 @@ export default {
           } catch (err) {
             return writeJson(res, { ok: false, error: err instanceof Error ? err.message : String(err) })
           }
+        },
+      },
+      {
+        kind: 'exact',
+        path: '/dsh-we/api/search',
+        handler: async (req, res) => {
+          const body = await readJsonBody(req)
+          const result = await searchContent(String(body.root ?? ''), String(body.q ?? body.query ?? ''))
+          return writeJson(res, result)
         },
       },
       {

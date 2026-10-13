@@ -166,7 +166,7 @@ Focused on the two lines that actually matter to the product: the **read path** 
 **In progress 🚧 — v0.10.0 (DSH 0.1.7+ platform features)**
 
 - [x] **Persisted panel settings** — Host `Config` (`.volatile()` schema) + client `configForms` binding; all five settings are written to the profile (`cordis.patch.yml`) and survive restarts
-- [ ] **Host-side content search** — `/dsh-we/api/search` so the panel filter matches file contents (fixes the stale-tree case)
+- [x] **Host-side content search** — `/dsh-we/api/search`; the panel filter matches file contents too (file name hits + `file :line` content hits with highlighted snippets)
 - [ ] **Reveal / copy path via `dsh-native-command`** — open the OS file manager at the file, copy the absolute path
 - [ ] **Open file → conversation preview** — `openReference` integration so clicking a file can attach it as a previewable reference
 
