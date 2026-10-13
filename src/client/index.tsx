@@ -3,7 +3,7 @@
  *
  * 交互对标 dsh-better-sidebar:面板顶部 Tab 栏(文件 / 设置)切换页面;
  * 设置页逐项开关/下拉实时生效;并注册 DSH 设置壳的 settings.section 页。
- * 通过 /dsh-we/api/* JSON 路由调用 Host(list / peek / search / config)。
+ * 通过 /dsh-we/api/* JSON 路由调用 Host(list / peek / search / native / config)。
  * 浏览器 bundle(src/client/index.tsx → lib/client.js,__ModuleLoader__ 格式)。
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -39,6 +39,9 @@ const DICTS: Record<string, Record<string, string>> = {
     'btn.content.tip': '把文件内容插入输入框', 'btn.content.no': '文件过大或二进制,无法内联',
     'sidebar.tooltip': '工作区文件', 'sidebar.label': '文件', refresh: '刷新', close: '关闭',
     'close.preview': '关闭预览', 'row.tip': '点击或拖拽到输入框', 'preview.tip': '预览 (P)',
+    'row.menu.copy': '复制路径', 'row.menu.reveal': '在文件管理器中显示',
+    'row.menu.reveal.finder': '在访达中显示', 'row.menu.reveal.explorer': '在资源管理器中显示',
+    'path.copied': '已复制路径', 'reveal.fail': '无法在文件管理器中显示: ', 'copy.fail': '复制失败: ',
     'insert.tip': '插入引用', 'drop.hint': '松开以插入文件引用到输入框', 'drop.hint.dir': '松开以插入目录树',
     'add.ws': '添加工作区', 'dir.tree.fail': '目录树生成失败: ',
     'sel.count': '已选 {n} 项', 'sel.insert': '插入所选', 'sel.clear': '清除',
@@ -72,6 +75,9 @@ const DICTS: Record<string, Record<string, string>> = {
     'btn.content.tip': 'Insert the file content into the composer', 'btn.content.no': 'Too large or binary — cannot inline',
     'sidebar.tooltip': 'Workspace Files', 'sidebar.label': 'Files', refresh: 'Refresh', close: 'Close',
     'close.preview': 'Close preview', 'row.tip': 'click or drag to the composer', 'preview.tip': 'Preview (P)',
+    'row.menu.copy': 'Copy path', 'row.menu.reveal': 'Reveal in file manager',
+    'row.menu.reveal.finder': 'Reveal in Finder', 'row.menu.reveal.explorer': 'Reveal in Explorer',
+    'path.copied': 'Path copied', 'reveal.fail': 'Cannot reveal in file manager: ', 'copy.fail': 'Copy failed: ',
     'insert.tip': 'Insert reference', 'drop.hint': 'Release to insert the file reference into the composer', 'drop.hint.dir': 'Release to insert the folder tree',
     'add.ws': 'Add workspace', 'dir.tree.fail': 'Folder tree failed: ',
     'sel.count': '{n} selected', 'sel.insert': 'Insert', 'sel.clear': 'Clear',
@@ -197,6 +203,8 @@ interface ConfigResult { ok: boolean; ignore?: string[]; max?: number; peekMaxLi
 /** 宿主内容搜索命中(/dsh-we/api/search)。 */
 interface SearchHit { rel: string; name: string; line: number; text: string; start: number; end: number }
 interface SearchResult { ok: boolean; error?: string; hits?: SearchHit[]; scanned?: number; truncated?: boolean }
+/** 原生文件管理器能力/结果(/dsh-we/api/native)。 */
+interface NativeStatusResult { ok: boolean; fileManager?: string | null; error?: string }
 
 // ---------- 面板配置(默认内存级;DSH 0.1.7+ 存在 settings 域时持久化到 Profile) ----------
 // 持久化机制:Host 入口导出 Config(字段 .volatile()),DSH settings 域把它投影为可热编辑表单;
@@ -565,6 +573,61 @@ function Panel(props: {
   const [c, setC] = useState(getCfg())
   useEffect(() => subscribeCfg(setC), [])
 
+  // 行右键菜单(复制路径 / 在文件管理器中显示);宿主无桌面时 reveal 项隐藏
+  const [ctxMenu, setCtxMenu] = useState<{ entry: WsEntry; x: number; y: number } | null>(null)
+  const [flash, setFlash] = useState('')
+  const [nativeFm, setNativeFm] = useState<string | null | undefined>(undefined)
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    api<NativeStatusResult>('native', { action: 'status' })
+      .then((r) => setNativeFm(r.ok ? (r.fileManager ?? null) : null))
+      .catch(() => setNativeFm(null))
+  }, [])
+  useEffect(() => {
+    const close = (): void => setCtxMenu(null)
+    const onKey = (ev: KeyboardEvent): void => { if (ev.key === 'Escape') setCtxMenu(null) }
+    window.addEventListener('click', close)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('click', close)
+      window.removeEventListener('keydown', onKey)
+      if (flashTimer.current !== null) clearTimeout(flashTimer.current)
+    }
+  }, [])
+  const showFlash = (msg: string): void => {
+    setFlash(msg)
+    if (flashTimer.current !== null) clearTimeout(flashTimer.current)
+    flashTimer.current = setTimeout(() => setFlash(''), 2000)
+  }
+  const openCtxMenu = (ev: React.MouseEvent, entry: WsEntry): void => {
+    ev.preventDefault()
+    ev.stopPropagation()
+    const x = Math.max(4, Math.min(ev.clientX, window.innerWidth - 230))
+    const y = Math.max(4, Math.min(ev.clientY, window.innerHeight - 96))
+    setCtxMenu({ entry, x, y })
+  }
+  const copyPath = (ev: React.MouseEvent): void => {
+    ev.stopPropagation()
+    const entry = ctxMenu?.entry
+    setCtxMenu(null)
+    if (!entry) return
+    navigator.clipboard.writeText(entry.path)
+      .then(() => showFlash(tr('path.copied')))
+      .catch((err: unknown) => showFlash(tr('copy.fail') + String((err as Error)?.message ?? err)))
+  }
+  const revealEntry = (ev: React.MouseEvent): void => {
+    ev.stopPropagation()
+    const entry = ctxMenu?.entry
+    setCtxMenu(null)
+    if (!entry || root === null) return
+    api<NativeStatusResult>('native', { action: 'reveal', root, rel: entry.rel })
+      .then((r) => { if (!r.ok) showFlash(tr('reveal.fail') + (r.error ?? '')) })
+      .catch((err: unknown) => showFlash(tr('reveal.fail') + String((err as Error)?.message ?? err)))
+  }
+  const revealLabel = nativeFm === 'finder' ? tr('row.menu.reveal.finder')
+    : nativeFm === 'explorer' ? tr('row.menu.reveal.explorer')
+    : tr('row.menu.reveal')
+
   // DSH 0.2.0 的 WorkspaceSnapshot 已无 recentWorkspaceId(0.1.5 在 workspaces 服务上),
   // 这里恒为 undefined,自动落到 firstItem —— 属预期降级,不作为错误。
   const recentItem = workspaces.find((w) => w.workspaceId === wsState.recentWorkspaceId)
@@ -904,6 +967,7 @@ function Panel(props: {
         title={entry.path + (isDir ? '' : ` · ${tr('row.tip')}`)}
         draggable
         onDragStart={(ev) => onDragStart(ev, entry)}
+        onContextMenu={(ev) => openCtxMenu(ev, entry)}
         onClick={(ev) => onRowClick(ev, entry)}
         onKeyDown={(ev) => {
           if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); if (isDir) toggle(entry.rel); else insertMarker(entry) }
@@ -958,6 +1022,7 @@ function Panel(props: {
         title={entry.path + ` · L${hit.line} · ${tr('row.tip')}`}
         draggable
         onDragStart={(ev) => onDragStart(ev, entry)}
+        onContextMenu={(ev) => openCtxMenu(ev, entry)}
         onClick={() => insertMarker(entry)}
         onKeyDown={(ev) => {
           if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); insertMarker(entry) }
@@ -1102,12 +1167,22 @@ function Panel(props: {
         ) : null}
       </div>
       <div className={C('dshwe-hintline')}><span>↩</span>{tr('hint')}</div>
+      {flash !== '' ? <div className={C('dshwe-note')}>{flash}</div> : null}
       <div className={C('dshwe-tree')}>{body}</div>
       {selected.size > 0 ? (
         <div className={C('dshwe-selbar')}>
           <span className={C('dshwe-selbar-count')}>{tr('sel.count', { n: selected.size })}</span>
           <button type="button" className={C('dshwe-prevbtn')} onClick={() => void insertSelected()}>{tr('sel.insert')}</button>
           <button type="button" className={C('dshwe-prevbtn')} onClick={() => { setSelected(new Set()); setSelAnchor(null) }}>{tr('sel.clear')}</button>
+        </div>
+      ) : null}
+      {ctxMenu !== null ? (
+        <div className={C('dshwe-ctx')} role="menu" style={{ left: ctxMenu.x, top: ctxMenu.y }}
+          onClick={(ev) => ev.stopPropagation()} onContextMenu={(ev) => ev.preventDefault()}>
+          <button type="button" role="menuitem" className={C('dshwe-ctx-item')} onClick={copyPath}>{tr('row.menu.copy')}</button>
+          {nativeFm !== null && nativeFm !== undefined ? (
+            <button type="button" role="menuitem" className={C('dshwe-ctx-item')} onClick={revealEntry}>{revealLabel}</button>
+          ) : null}
         </div>
       ) : null}
     </>

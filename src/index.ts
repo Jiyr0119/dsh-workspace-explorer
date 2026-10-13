@@ -6,6 +6,7 @@
  * - peek : 按行分页读取文本文件(offset/limit),支持「插入完整内容」(whole,≤32KB)
  * - tree : 递归生成目录树节点(限深/限条目),供目录拖拽与多选批量插入
  * - search: 内容搜索(工作区内文本文件逐行匹配,限文件数/命中数/文件大小)
+ * - native: 在系统文件管理器中显示(status / reveal,经 @deepseek-ai/dsh-native-command)
  * - config: 运行期配置(噪声目录 / 最大条目 / 预览行数);面板设置经 Config(volatile)持久化到 Profile
  *
  * 安全边界:list/peek/tree/search 全部以「工作区根目录 + 相对路径」寻址,服务端校验 rel
@@ -16,6 +17,8 @@ import type { Dirent } from 'node:fs'
 import { basename, join } from 'node:path'
 import type { Context } from 'cordis'
 import z from '@deepseek-ai/schemastery'
+import { canOpenNativePath, nativeFileManager, revealNativePath } from '@deepseek-ai/dsh-native-command'
+import type { NativeFileManager } from '@deepseek-ai/dsh-native-command'
 
 /** 请求面(结构子集:URL/method/headers + 异步 body 迭代)。 */
 export interface WsHttpRequest {
@@ -330,6 +333,33 @@ export async function searchContent(root: string, query: string, opts: SearchOpt
   return { ok: true, hits, scanned, truncated }
 }
 
+/** 原生文件管理器能力状态(客户端据此决定是否展示「在文件管理器中显示」)。 */
+export interface NativeStatus {
+  ok: boolean
+  fileManager: NativeFileManager | null
+}
+
+/** @internal 宿主是否有桌面文件管理器可交接(macOS/Windows 恒有;Linux 看 WSL / 显示服务)。 */
+export function nativeRevealStatus(): NativeStatus {
+  return { ok: canOpenNativePath(), fileManager: nativeFileManager() }
+}
+
+/**
+ * @internal 在系统文件管理器中显示工作区内一个文件/目录(reveal in Finder/Explorer)。
+ * 路径经 resolveRel 约束在 root 内;无桌面环境返回 no-desktop;命令超时 15s。
+ */
+export async function revealWorkspacePath(root: string, rel: string): Promise<{ ok: boolean; error?: string }> {
+  const resolved = resolveRel(root, rel)
+  if ('error' in resolved) return { ok: false, error: resolved.error }
+  if (!canOpenNativePath()) return { ok: false, error: 'no-desktop' }
+  try {
+    await revealNativePath(resolved.abs, AbortSignal.timeout(15_000))
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) }
+  }
+}
+
 /**
  * 插件持久化配置(DSH 0.1.7+ settings 域)。
  *
@@ -452,6 +482,19 @@ export default {
           } catch (err) {
             return writeJson(res, { ok: false, error: err instanceof Error ? err.message : String(err) })
           }
+        },
+      },
+      {
+        kind: 'exact',
+        path: '/dsh-we/api/native',
+        handler: async (req, res) => {
+          const body = await readJsonBody(req)
+          if (body.action === 'status') return writeJson(res, nativeRevealStatus())
+          if (body.action === 'reveal') {
+            const result = await revealWorkspacePath(String(body.root ?? ''), String(body.rel ?? ''))
+            return writeJson(res, { ...result, ...nativeRevealStatus() })
+          }
+          return writeJson(res, { ok: false, error: 'unknown-action' }, 400)
         },
       },
       {

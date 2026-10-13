@@ -1,5 +1,6 @@
 import type { Context } from 'cordis';
 import z from '@deepseek-ai/schemastery';
+import type { NativeFileManager } from '@deepseek-ai/dsh-native-command';
 /** 请求面(结构子集:URL/method/headers + 异步 body 迭代)。 */
 export interface WsHttpRequest {
     url?: string;
@@ -56,6 +57,11 @@ export interface SearchOptions {
     maxFiles?: number;
     maxFileBytes?: number;
     maxPerFile?: number;
+}
+/** 原生文件管理器能力状态(客户端据此决定是否展示「在文件管理器中显示」)。 */
+export interface NativeStatus {
+    ok: boolean;
+    fileManager: NativeFileManager | null;
 }
 /**
  * 插件持久化配置(DSH 0.1.7+ settings 域)。

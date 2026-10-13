@@ -255,3 +255,7 @@
 .dshwe-crow-line { flex: none; font-size: 11px; color: var(--dsw-alias-label-caption, #8a8a8a); font-variant-numeric: tabular-nums; }
 .dshwe-crow-snippet { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; color: var(--dsw-alias-label-secondary, #9a9a9a); }
 .dshwe-mark { background: rgba(255, 196, 0, .25); color: inherit; border-radius: 3px; padding: 0 1px; }
+/* ---- 行右键菜单:复制路径 / 在文件管理器中显示 ---- */
+.dshwe-ctx { position: fixed; z-index: 120; min-width: 184px; padding: 4px; display: flex; flex-direction: column; gap: 2px; background: var(--dsw-alias-bg-layer-2, #2c2c2c); border: 1px solid var(--dsw-alias-border-l2, rgba(128,128,128,.35)); border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, .35); }
+.dshwe-ctx-item { border: 0; background: transparent; color: inherit; font: inherit; font-size: 12.5px; text-align: left; padding: 6px 10px; border-radius: 7px; cursor: pointer; white-space: nowrap; }
+.dshwe-ctx-item:hover { background: var(--dsw-alias-interactive-bg-hover, rgba(128, 128, 128, .14)); }
