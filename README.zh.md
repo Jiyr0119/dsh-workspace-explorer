@@ -162,6 +162,7 @@ dsh-workspace-explorer/
 - [x] **宿主侧内容搜索** — `/dsh-we/api/search`;面板过滤同时匹配文件内容(文件名命中 + `文件 :行号` 内容命中,命中片段高亮)
 - [x] **复制路径 / 在文件管理器中显示** — 行右键菜单:复制绝对路径;经 `/dsh-we/api/native` 调 `dsh-native-command` 在访达/资源管理器中显示
 - [x] **打开文件 → 侧栏预览** — 行右键菜单在右侧栏打开原生文件预览(`dsh-resource://file/session/<sessionId>/<path>` → `sidebarRight.openResource`)
+- [x] **崩溃隔离(插件自保护)** — 客户端 `apply` 整体 try/catch + 四个挂载点渲染错误边界;插件内部异常不再可能让 DSH web boot 失败
 
 **搁置 Backlog**(出现真实需求再做)
 

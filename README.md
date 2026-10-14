@@ -169,6 +169,7 @@ Focused on the two lines that actually matter to the product: the **read path** 
 - [x] **Host-side content search** — `/dsh-we/api/search`; the panel filter matches file contents too (file name hits + `file :line` content hits with highlighted snippets)
 - [x] **Reveal / copy path via `dsh-native-command`** — row context menu: copy the absolute path, reveal the file in Finder/Explorer (`/dsh-we/api/native`)
 - [x] **Open file → sidebar preview** — row context menu opens the native file preview in the right sidebar (`dsh-resource://file/session/<sessionId>/<path>` → `sidebarRight.openResource`)
+- [x] **Crash isolation (plugin self-protection)** — client `apply` fully wrapped in try/catch + render error boundaries on all mount points; a plugin-internal exception can no longer fail DSH's web boot
 
 **Parked backlog** (do when real demand shows up)
 

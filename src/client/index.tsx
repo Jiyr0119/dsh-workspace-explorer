@@ -6,7 +6,7 @@
  * 通过 /dsh-we/api/* JSON 路由调用 Host(list / peek / search / native / config)。
  * 浏览器 bundle(src/client/index.tsx → lib/client.js,__ModuleLoader__ 格式)。
  */
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Component, useCallback, useEffect, useRef, useState } from 'react'
 import type { InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 import styles from './panel.module.css'
 import { basename, extOf, fmtSize, formatTreeBlock } from './format'
@@ -1391,7 +1391,30 @@ interface CtxLike {
 
 export const inject = ['slots', 'locale']
 
+/**
+ * 渲染错误边界:任一面板组件渲染抛错时只摘掉自己(返回 null),
+ * 避免 React 向上解绑导致整个 DSH 会话界面连坐卸载。
+ */
+class SafeBoundary extends Component<{ children?: React.ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError(): { failed: boolean } { return { failed: true } }
+  componentDidCatch(error: unknown): void {
+    console.error('[dsh-workspace-explorer] render error caught:', error)
+  }
+  render(): React.ReactNode { return this.state.failed ? null : this.props.children }
+}
+
 export function apply(ctx: CtxLike): void {
+  // 激活期兜底:DSH web boot 要求所有条目激活成功,任一插件在 apply 抛错都会让整个前端启动失败。
+  // 这里整体捕获——功能可能降级,但绝不拖垮 DSH。
+  try {
+    applyImpl(ctx)
+  } catch (err) {
+    console.error('[dsh-workspace-explorer] apply failed (plugin degraded, DSH unaffected):', err)
+  }
+}
+
+function applyImpl(ctx: CtxLike): void {
   const slots = ctx.get('slots') as SlotsLike | undefined
   if (slots === undefined) return
   // workspaces / uiWorkspace 未在本插件 inject 列表里,创建时机可能晚于 apply(),延迟到调用时解析
@@ -1658,7 +1681,7 @@ export function apply(ctx: CtxLike): void {
 
   slots.inject('conversation.session.header.utilities', () => slots.register(
     { name: 'conversation.session.header.utilities', id: 'workspace-explorer-drawer', order: 20, label: () => tr('drawer.tip') },
-    () => <HeaderAction />,
+    () => <SafeBoundary><HeaderAction /></SafeBoundary>,
   ))
   // 占位注册:顶掉旧版原生包在侧边栏底部的「文件」按钮(用户要求仅保留会话头部入口)
   slots.inject('sidebar.footer.action', () => slots.register(
@@ -1667,14 +1690,14 @@ export function apply(ctx: CtxLike): void {
   ))
   slots.inject('shell.overlay', () => slots.register(
     { name: 'shell.overlay', id: 'workspace-explorer-panel' },
-    (props: never) => <DrawerRoot {...(props as { useWorkspaces: (s: unknown) => unknown; useSessions: (s: unknown) => unknown })} />,
+    (props: never) => <SafeBoundary><DrawerRoot {...(props as { useWorkspaces: (s: unknown) => unknown; useSessions: (s: unknown) => unknown })} /></SafeBoundary>,
   ))
   slots.inject('conversation.input.dock', () => slots.register(
     { name: 'conversation.input.dock', id: 'workspace-explorer-bridge' },
-    (props: never) => <DockBridge {...(props as { useInput?: (s: unknown) => unknown; inputActions?: { setDraft(d: string): void } })} />,
+    (props: never) => <SafeBoundary><DockBridge {...(props as { useInput?: (s: unknown) => unknown; inputActions?: { setDraft(d: string): void } })} /></SafeBoundary>,
   ))
   slots.inject('settings.section', () => slots.register(
     { name: 'settings.section', id: 'workspace-explorer', order: 30, label: () => tr('settings.nav') },
-    () => <div className={C('dshwe-setpage')}><SettingsView /></div>,
+    () => <SafeBoundary><div className={C('dshwe-setpage')}><SettingsView /></div></SafeBoundary>,
   ))
 }
