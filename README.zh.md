@@ -131,7 +131,7 @@ dsh-workspace-explorer/
 
 ## 版本
 
-当前版本 **v0.10.0** — **面板设置持久化**:五项面板设置(隐藏噪声目录 / 显示文件大小 / 路径样式 / 预览行数 / 面板宽度)经 DSH 0.1.7+ settings 域写入当前 Profile(`cordis.patch.yml`),重启后依然生效,也可在 DSH 设置页「工作区文件」中直接编辑。
+当前版本 **v0.10.0** — DSH 0.1.7+ 四项平台能力全部完成:面板设置持久化、宿主侧内容搜索、复制/在文件管理器中显示、打开文件 → 侧栏原生预览。设置写入 DSH settings 域并保存到当前 Profile(`cordis.patch.yml`),重启后依然生效,也可在 DSH 设置页「工作区文件」中直接编辑。
 变更记录见 [CHANGELOG.md](./CHANGELOG.md)。
 
 ## Roadmap
@@ -161,7 +161,7 @@ dsh-workspace-explorer/
 - [x] **面板设置持久化** — Host 导出 `Config`(`.volatile()` schema)+ 客户端 `configForms` 绑定;五项设置写入 Profile(`cordis.patch.yml`),重启后保留
 - [x] **宿主侧内容搜索** — `/dsh-we/api/search`;面板过滤同时匹配文件内容(文件名命中 + `文件 :行号` 内容命中,命中片段高亮)
 - [x] **复制路径 / 在文件管理器中显示** — 行右键菜单:复制绝对路径;经 `/dsh-we/api/native` 调 `dsh-native-command` 在访达/资源管理器中显示
-- [ ] **打开文件 → 对话预览** — `openReference` 集成,点击文件可作为可预览引用附到会话
+- [x] **打开文件 → 侧栏预览** — 行右键菜单在右侧栏打开原生文件预览(`dsh-resource://file/session/<sessionId>/<path>` → `sidebarRight.openResource`)
 
 **搁置 Backlog**(出现真实需求再做)
 

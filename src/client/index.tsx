@@ -41,7 +41,9 @@ const DICTS: Record<string, Record<string, string>> = {
     'close.preview': '关闭预览', 'row.tip': '点击或拖拽到输入框', 'preview.tip': '预览 (P)',
     'row.menu.copy': '复制路径', 'row.menu.reveal': '在文件管理器中显示',
     'row.menu.reveal.finder': '在访达中显示', 'row.menu.reveal.explorer': '在资源管理器中显示',
+    'row.menu.sidebarPreview': '在侧栏预览',
     'path.copied': '已复制路径', 'reveal.fail': '无法在文件管理器中显示: ', 'copy.fail': '复制失败: ',
+    'preview.fail': '无法预览: ', 'preview.noSession': '无法预览: 当前没有活动会话', 'preview.unavailable': '无法预览: 右侧栏不可用',
     'insert.tip': '插入引用', 'drop.hint': '松开以插入文件引用到输入框', 'drop.hint.dir': '松开以插入目录树',
     'add.ws': '添加工作区', 'dir.tree.fail': '目录树生成失败: ',
     'sel.count': '已选 {n} 项', 'sel.insert': '插入所选', 'sel.clear': '清除',
@@ -77,7 +79,9 @@ const DICTS: Record<string, Record<string, string>> = {
     'close.preview': 'Close preview', 'row.tip': 'click or drag to the composer', 'preview.tip': 'Preview (P)',
     'row.menu.copy': 'Copy path', 'row.menu.reveal': 'Reveal in file manager',
     'row.menu.reveal.finder': 'Reveal in Finder', 'row.menu.reveal.explorer': 'Reveal in Explorer',
+    'row.menu.sidebarPreview': 'Preview in sidebar',
     'path.copied': 'Path copied', 'reveal.fail': 'Cannot reveal in file manager: ', 'copy.fail': 'Copy failed: ',
+    'preview.fail': 'Cannot preview: ', 'preview.noSession': 'Cannot preview: no active session', 'preview.unavailable': 'Cannot preview: right sidebar unavailable',
     'insert.tip': 'Insert reference', 'drop.hint': 'Release to insert the file reference into the composer', 'drop.hint.dir': 'Release to insert the folder tree',
     'add.ws': 'Add workspace', 'dir.tree.fail': 'Folder tree failed: ',
     'sel.count': '{n} selected', 'sel.insert': 'Insert', 'sel.clear': 'Clear',
@@ -156,6 +160,16 @@ interface SessionListLike {
 let sessionsList: SessionListLike | null = null
 /** 当前会话 id 读取器(uiSession.adapter.current 的 StandardSourceBinding.key)。 */
 let readCurrentSessionId: (() => string | undefined) | null = null
+/** 右侧栏导航面(ctx.sidebarRight,reflect 提供;旧版/未安装则 null → 隐藏预览菜单项)。 */
+interface SidebarRightLike { openResource(address: string, options?: unknown): void }
+let sidebarRightSvc: SidebarRightLike | null = null
+/** 构造文件资源地址(镜像 DSH 的 fileAddressFor/sessionFileAddress 编码约定)。 */
+const FILE_ADDRESS_PREFIX = 'dsh-resource://file/'
+const encodeSeg = (s: string): string => encodeURIComponent(s).replace(/%3A/gi, ':')
+const fileAddressFor = (sessionId: string, path: string): string => {
+  const normalized = path.replace(/\\/g, '/').replace(/^(?:\.\/)+/, '')
+  return `${FILE_ADDRESS_PREFIX}session/${encodeSeg(sessionId)}/${normalized.split('/').map(encodeSeg).join('/')}`
+}
 
 // ---------- 图标 ----------
 const FOLDER_D = 'M1.5 2.5A1.5 1.5 0 0 1 3 1h3.2l1.6 2H13a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 13 13H3a1.5 1.5 0 0 1-1.5-1.5v-9z'
@@ -627,6 +641,26 @@ function Panel(props: {
   const revealLabel = nativeFm === 'finder' ? tr('row.menu.reveal.finder')
     : nativeFm === 'explorer' ? tr('row.menu.reveal.explorer')
     : tr('row.menu.reveal')
+  const previewInSidebar = (ev: React.MouseEvent): void => {
+    ev.stopPropagation()
+    const entry = ctxMenu?.entry
+    setCtxMenu(null)
+    if (!entry) return
+    const sessionId = readCurrentSessionId?.()
+    if (sessionId === undefined) {
+      showFlash(tr('preview.noSession'))
+      return
+    }
+    if (sidebarRightSvc === null) {
+      showFlash(tr('preview.unavailable'))
+      return
+    }
+    try {
+      sidebarRightSvc.openResource(fileAddressFor(sessionId, entry.path))
+    } catch (err) {
+      showFlash(tr('preview.fail') + String((err as Error)?.message ?? err))
+    }
+  }
 
   // DSH 0.2.0 的 WorkspaceSnapshot 已无 recentWorkspaceId(0.1.5 在 workspaces 服务上),
   // 这里恒为 undefined,自动落到 firstItem —— 属预期降级,不作为错误。
@@ -1179,6 +1213,9 @@ function Panel(props: {
       {ctxMenu !== null ? (
         <div className={C('dshwe-ctx')} role="menu" style={{ left: ctxMenu.x, top: ctxMenu.y }}
           onClick={(ev) => ev.stopPropagation()} onContextMenu={(ev) => ev.preventDefault()}>
+          {sidebarRightSvc !== null ? (
+            <button type="button" role="menuitem" className={C('dshwe-ctx-item')} onClick={previewInSidebar}>{tr('row.menu.sidebarPreview')}</button>
+          ) : null}
           <button type="button" role="menuitem" className={C('dshwe-ctx-item')} onClick={copyPath}>{tr('row.menu.copy')}</button>
           {nativeFm !== null && nativeFm !== undefined ? (
             <button type="button" role="menuitem" className={C('dshwe-ctx-item')} onClick={revealEntry}>{revealLabel}</button>
@@ -1486,6 +1523,20 @@ export function apply(ctx: CtxLike): void {
     })
   } catch {
     // sessions / uiSession 服务不可用时静默忽略(不影响核心功能)
+  }
+
+  // ---------- 右侧栏导航面(打开文件 → 原生预览,同 chat openFile/reference openReference 落点) ----------
+  try {
+    ctx.inject(['sidebarRight'], (scope) => {
+      const svc = (scope as unknown as { sidebarRight?: SidebarRightLike }).sidebarRight
+      if (svc === undefined) return
+      sidebarRightSvc = svc
+      return () => {
+        if (sidebarRightSvc === svc) sidebarRightSvc = null
+      }
+    })
+  } catch {
+    // sidebarRight 不可用(旧版 DSH):预览菜单项自动隐藏
   }
 
   // ---------- 自动设置输入桥:从 conversation.input 服务获取 setDraft ----------

@@ -136,7 +136,7 @@ dsh-workspace-explorer/
 
 ## Version
 
-Current version **v0.10.0** — **persisted panel settings**: all five explorer settings (hide noise dirs / show file size / path style / preview lines / panel width) now live in the DSH 0.1.7+ settings domain and are saved to the current Profile (`cordis.patch.yml`), so they survive restarts and can also be edited from DSH's 设置 → 工作区文件 page.
+Current version **v0.10.0** — all four DSH 0.1.7+ platform features shipped: persisted panel settings, host-side content search, copy/reveal path via `dsh-native-command`, and open-file → native sidebar preview. Settings live in the DSH settings domain and are saved to the current Profile (`cordis.patch.yml`), so they survive restarts and can also be edited from DSH's 设置 → 工作区文件 page.
 See [CHANGELOG.md](./CHANGELOG.md) for release notes.
 
 ## Roadmap
@@ -168,7 +168,7 @@ Focused on the two lines that actually matter to the product: the **read path** 
 - [x] **Persisted panel settings** — Host `Config` (`.volatile()` schema) + client `configForms` binding; all five settings are written to the profile (`cordis.patch.yml`) and survive restarts
 - [x] **Host-side content search** — `/dsh-we/api/search`; the panel filter matches file contents too (file name hits + `file :line` content hits with highlighted snippets)
 - [x] **Reveal / copy path via `dsh-native-command`** — row context menu: copy the absolute path, reveal the file in Finder/Explorer (`/dsh-we/api/native`)
-- [ ] **Open file → conversation preview** — `openReference` integration so clicking a file can attach it as a previewable reference
+- [x] **Open file → sidebar preview** — row context menu opens the native file preview in the right sidebar (`dsh-resource://file/session/<sessionId>/<path>` → `sidebarRight.openResource`)
 
 **Parked backlog** (do when real demand shows up)
 
